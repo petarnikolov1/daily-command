@@ -3425,6 +3425,11 @@ body > *{position:relative;z-index:1;}
   border:0.5px solid rgba(31,122,140,0.45);
   box-shadow:inset 0 1px 0 rgba(191,219,247,0.08),0 0 12px rgba(31,122,140,0.15);
 }
+.auth-tab-local{color:var(--muted2);}
+.auth-tab-local.active{
+  background:rgba(44,165,191,0.12);color:var(--teal2);
+  border:0.5px solid rgba(44,165,191,0.35);
+}
 .auth-form-title{
   font-family:'JetBrains Mono',monospace;font-size:.6rem;
   color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:18px;
@@ -4766,60 +4771,66 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 
     <!-- Supabase not configured banner -->
     <div id="authConfigBanner" style="display:none;background:rgba(232,163,56,0.08);border:0.5px solid rgba(232,163,56,0.35);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--amber2);line-height:1.7;">
-      ☁ Cloud sync requires Supabase.<br>
-      <span style="color:var(--muted);">Set <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;">SUPABASE_URL</code> &amp; <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;">SUPABASE_ANON_KEY</code> in the script to enable cross-device sync.</span><br>
-      <a href="#" id="authConfigHelp" style="color:var(--teal2);text-decoration:none;">See setup instructions ↗</a>
+      ☁ Cloud sync not configured — <a href="#" id="authConfigHelp" style="color:var(--teal2);text-decoration:none;">see setup instructions ↗</a>
     </div>
 
-    <!-- Local mode panel (always available) -->
-    <div id="authLocalPanel">
-      <div class="auth-form-title" style="margin-bottom:10px;">Use on this device</div>
+    <!-- 3-tab bar: Sign In | Register | This Device -->
+    <div class="auth-tabs" id="authTabBar">
+      <button class="auth-tab active" id="tabLogin">Sign In</button>
+      <button class="auth-tab" id="tabRegister">Register</button>
+      <button class="auth-tab auth-tab-local" id="tabLocal">This Device</button>
+    </div>
+
+    <!-- PANEL: Sign In -->
+    <div id="authLoginPanel">
+      <div class="auth-field">
+        <label class="auth-label" for="authEmail">Email</label>
+        <input class="auth-input" type="email" id="authEmail" placeholder="you@example.com" autocomplete="email" spellcheck="false">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label" for="authPassword">Password</label>
+        <input class="auth-input" type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div id="authForgotRow" style="text-align:right;margin-top:-6px;margin-bottom:4px;">
+        <a href="#" id="authForgotLink" style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--muted);text-decoration:none;">Forgot password?</a>
+      </div>
+      <button class="auth-submit" id="authSubmitBtn">Sign In</button>
+      <div class="auth-error" id="authError"></div>
+      <div id="authResetMsg" style="display:none;margin-top:10px;background:rgba(46,196,165,.08);border:0.5px solid rgba(46,196,165,.3);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--green);line-height:1.6;">
+        ✓ Password reset email sent. Check your inbox.
+      </div>
+    </div>
+
+    <!-- PANEL: Register (hidden by default) -->
+    <div id="authRegisterPanel" style="display:none;">
+      <div class="auth-field">
+        <label class="auth-label" for="authRegEmail">Email</label>
+        <input class="auth-input" type="email" id="authRegEmail" placeholder="you@example.com" autocomplete="email" spellcheck="false">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label" for="authRegPassword">Password <span style="color:var(--muted2);font-size:.55rem;">(min 8 chars)</span></label>
+        <input class="auth-input" type="password" id="authRegPassword" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <button class="auth-submit" id="authRegisterBtn">Create Account</button>
+      <div class="auth-error" id="authRegError"></div>
+    </div>
+
+    <!-- PANEL: This Device / Local mode -->
+    <div id="authLocalPanel" style="display:none;">
       <div class="auth-field" style="margin-bottom:10px;">
         <label class="auth-label" for="authLocalName">Your name <span style="color:var(--muted2);font-size:.55rem;">(stored locally)</span></label>
         <input class="auth-input" type="text" id="authLocalName" placeholder="e.g. Alex" autocomplete="given-name" spellcheck="false" maxlength="40">
       </div>
-      <button class="auth-submit" id="authLocalBtn" style="background:linear-gradient(135deg,rgba(31,122,140,0.22),rgba(44,165,191,0.14));border-color:rgba(44,165,191,0.5);">⚡ Enter — No Account Needed</button>
+      <button class="auth-submit" id="authLocalBtn" style="background:linear-gradient(135deg,rgba(31,122,140,0.22),rgba(44,165,191,0.14));border-color:rgba(44,165,191,0.5);margin-top:0;">⚡ Enter — No Account Needed</button>
       <div class="auth-error" id="authLocalError"></div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:.54rem;color:var(--muted2);margin-top:10px;line-height:1.65;text-align:center;">
-        Data saved in your browser. Use export/import in Settings to move between devices.
+        Data saved in this browser only. Use Settings → Export/Import to move between devices.
       </div>
     </div>
 
-    <!-- Cloud login divider -->
-    <div id="authCloudDivider" style="display:flex;align-items:center;gap:10px;margin:14px 0 10px;opacity:.6;">
-      <div style="flex:1;height:0.5px;background:var(--border);"></div>
-      <span style="font-family:'JetBrains Mono',monospace;font-size:.55rem;color:var(--muted2);white-space:nowrap;">or sign in for cloud sync</span>
-      <div style="flex:1;height:0.5px;background:var(--border);"></div>
-    </div>
-
-    <div id="authCloudSection">
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="tabLogin">Sign In</button>
-        <button class="auth-tab" id="tabRegister">Register</button>
-      </div>
-
-      <div id="authLoginPanel">
-        <div class="auth-form-title" id="authFormTitle">Cloud account</div>
-        <div class="auth-field">
-          <label class="auth-label" for="authEmail">Email</label>
-          <input class="auth-input" type="email" id="authEmail" placeholder="you@example.com" autocomplete="email" spellcheck="false">
-        </div>
-        <div class="auth-field">
-          <label class="auth-label" for="authPassword">Password</label>
-          <input class="auth-input" type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
-        </div>
-        <div id="authForgotRow" style="text-align:right;margin-top:-6px;margin-bottom:8px;">
-          <a href="#" id="authForgotLink" style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--muted);text-decoration:none;">Forgot password?</a>
-        </div>
-        <button class="auth-submit" id="authSubmitBtn" style="margin-top:4px;">Sign In / Register</button>
-        <div class="auth-error" id="authError"></div>
-        <div id="authResetMsg" style="display:none;margin-top:10px;background:rgba(46,196,165,.08);border:0.5px solid rgba(46,196,165,.3);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--green);line-height:1.6;">
-          ✓ Password reset email sent. Check your inbox.
-        </div>
-      </div>
-    </div>
-
-    <!-- hidden stubs kept for legacy code compatibility -->
+    <!-- hidden stubs for legacy code compatibility -->
+    <div id="authCloudSection" style="display:none;"></div>
+    <div id="authCloudDivider" style="display:none;"></div>
     <div id="authImportPanel" style="display:none;">
       <div class="auth-error" id="authImportError"></div>
       <div class="auth-error" id="authImportOk" style="display:none;"></div>
@@ -4827,7 +4838,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
       <input type="file" id="authImportFile" style="display:none;">
       <button id="authImportApplyBtn" style="display:none;"></button>
     </div>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:.52rem;color:var(--muted2);text-align:center;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border);">⚡ Daily Command — your personal ops center</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:.52rem;color:var(--muted2);text-align:center;margin-top:14px;padding-top:10px;border-top:0.5px solid var(--border);">⚡ Daily Command — your personal ops center</div>
   </div>
 </div>
 
@@ -5795,6 +5806,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 const SUPABASE_URL  = 'https://petarnikolov1.github.io/daily-command/';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4eWR4ZmRpaGd1dWZoZXVjeWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzOTMzNzYsImV4cCI6MjA5NTk2OTM3Nn0.s_4NCKBsR6ijKdGuJa6lu7_oWg8cFCKU1lnkM8saJnY'; // starts with eyJ…
 
+
 // ── Init Supabase client ──────────────────────────────────────────────
 const _sbConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY';
 const _sb = _sbConfigured
@@ -5893,22 +5905,27 @@ async function _logout(){
   if(_sbRealtime && _sb){ _sb.removeChannel(_sbRealtime); _sbRealtime=null; }
   if(_sb && !_localMode) await _sb.auth.signOut();
   if(_localMode){
-    // Clear local session flag
     try{ localStorage.removeItem('dcmd_local_session'); }catch(e){}
   }
   _currentUser=null; _sbUserId=null; _localMode=false;
   const ov=document.getElementById('authOverlay');
   ov.classList.remove('auth-fade-out'); ov.style.display='flex';
+  // Reset all panels to login tab
+  document.getElementById('authLoginPanel').style.display='';
+  document.getElementById('authRegisterPanel').style.display='none';
+  document.getElementById('authLocalPanel').style.display='none';
   document.getElementById('authError').classList.remove('show');
+  document.getElementById('authRegError').classList.remove('show');
+  document.getElementById('authLocalError').classList.remove('show');
   document.getElementById('authEmail').value='';
   document.getElementById('authPassword').value='';
+  document.getElementById('authRegEmail').value='';
+  document.getElementById('authRegPassword').value='';
   document.getElementById('authLocalName').value='';
-  document.getElementById('authLocalError').classList.remove('show');
-  const _pb=document.getElementById('navProfileBtn');if(_pb)_pb.style.display='none';
+  ['tabLogin','tabRegister','tabLocal'].forEach(id=>document.getElementById(id).classList.remove('active'));
   document.getElementById('tabLogin').classList.add('active');
-  document.getElementById('tabRegister').classList.remove('active');
-  document.getElementById('authSubmitBtn').textContent='Sign In / Register';
-  document.getElementById('authFormTitle').textContent='Cloud account';
+  document.getElementById('authSubmitBtn').textContent='Sign In';
+  const _pb=document.getElementById('navProfileBtn');if(_pb)_pb.style.display='none';
 }
 
 // ── Update nav + settings with user info ─────────────────────────────
@@ -5958,12 +5975,25 @@ async function _bootUser(user, ov){
 
 // ── Init auth on page load ────────────────────────────────────────────
 function _showAuthPanel(panel){
-  document.getElementById('authLoginPanel').style.display='';
-  document.getElementById('authImportPanel').style.display='none';
+  // legacy stub — no-op in new layout
 }
 
 async function _initAuth(){
   const ov = document.getElementById('authOverlay');
+
+  // ── Helper: switch visible panel ────────────────────────────────
+  function _switchTab(tab){
+    // tab: 'login' | 'register' | 'local'
+    document.getElementById('authLoginPanel').style.display    = tab==='login'    ? '' : 'none';
+    document.getElementById('authRegisterPanel').style.display = tab==='register' ? '' : 'none';
+    document.getElementById('authLocalPanel').style.display    = tab==='local'    ? '' : 'none';
+    ['tabLogin','tabRegister','tabLocal'].forEach(id=>document.getElementById(id).classList.remove('active'));
+    const map = {login:'tabLogin', register:'tabRegister', local:'tabLocal'};
+    document.getElementById(map[tab]).classList.add('active');
+  }
+
+  // Start on login tab
+  _switchTab('login');
 
   // ── LOCAL MODE: restore saved local session ──────────────────────
   const savedLocal = localStorage.getItem('dcmd_local_session');
@@ -5977,19 +6007,22 @@ async function _initAuth(){
 
   // ── CLOUD MODE: check Supabase session ────────────────────────────
   if(_sbConfigured){
-    const { data: { session } } = await _sb.auth.getSession();
+    let session;
+    try{
+      const res = await _sb.auth.getSession();
+      session = res?.data?.session;
+    }catch(e){ console.warn('getSession failed:', e); }
+
     if(session?.user){
       _localMode = false;
       ov.style.display='none';
       await _bootUser(session.user, ov);
       return;
     }
-    // Show cloud section; hide config banner since SB is configured
-    document.getElementById('authConfigBanner').style.display='none';
-    document.getElementById('authCloudSection').style.display='';
-    document.getElementById('authCloudDivider').style.display='flex';
 
-    // Listen for auth state changes (handles email confirm redirects, etc.)
+    document.getElementById('authConfigBanner').style.display='none';
+
+    // Listen for auth state changes (email confirm redirects, etc.)
     _sb.auth.onAuthStateChange(async (event, session) => {
       if(event==='SIGNED_IN' && session?.user && !_currentUser){
         _localMode = false;
@@ -5998,13 +6031,30 @@ async function _initAuth(){
       if(event==='SIGNED_OUT'){ _logout(); }
     });
   } else {
-    // Supabase not configured — show banner, hide cloud sign-in
+    // Supabase not configured — show banner, disable cloud tabs
     document.getElementById('authConfigBanner').style.display='';
-    document.getElementById('authCloudSection').style.display='none';
-    document.getElementById('authCloudDivider').style.display='none';
+    document.getElementById('tabLogin').disabled    = true;
+    document.getElementById('tabRegister').disabled = true;
+    document.getElementById('tabLogin').title    = 'Supabase not configured';
+    document.getElementById('tabRegister').title = 'Supabase not configured';
+    document.getElementById('tabLogin').style.opacity    = '0.35';
+    document.getElementById('tabRegister').style.opacity = '0.35';
+    _switchTab('local');
   }
 
   ov.style.display='flex';
+
+  // ── TAB WIRING ──────────────────────────────────────────────────
+  document.getElementById('tabLogin').addEventListener('click',()=>{
+    if(!_sbConfigured) return;
+    _switchTab('login');
+    document.getElementById('authResetMsg').style.display='none';
+  });
+  document.getElementById('tabRegister').addEventListener('click',()=>{
+    if(!_sbConfigured) return;
+    _switchTab('register');
+  });
+  document.getElementById('tabLocal').addEventListener('click',()=>{ _switchTab('local'); });
 
   // ── LOCAL ENTRY BUTTON ──────────────────────────────────────────
   document.getElementById('authLocalBtn').addEventListener('click', async ()=>{
@@ -6024,63 +6074,46 @@ async function _initAuth(){
     if(e.key==='Enter') document.getElementById('authLocalBtn').click();
   });
 
-  if(!_sbConfigured) return; // nothing more to wire if no Supabase
+  if(!_sbConfigured) return;
 
-  // ── CLOUD TABS ──────────────────────────────────────────────────
-  document.getElementById('tabLogin').addEventListener('click',()=>{
-    ['tabLogin','tabRegister'].forEach(id=>document.getElementById(id).classList.remove('active'));
-    document.getElementById('tabLogin').classList.add('active');
-    document.getElementById('authSubmitBtn').textContent='Sign In';
-    document.getElementById('authFormTitle').textContent='Cloud account';
-    document.getElementById('authError').classList.remove('show');
-    document.getElementById('authResetMsg').style.display='none';
-  });
-  document.getElementById('tabRegister').addEventListener('click',()=>{
-    ['tabLogin','tabRegister'].forEach(id=>document.getElementById(id).classList.remove('active'));
-    document.getElementById('tabRegister').classList.add('active');
-    document.getElementById('authSubmitBtn').textContent='Create Account';
-    document.getElementById('authFormTitle').textContent='Create your account';
-    document.getElementById('authError').classList.remove('show');
-    document.getElementById('authResetMsg').style.display='none';
-  });
-
-  // ── Forgot password ──
-  document.getElementById('authForgotLink').addEventListener('click', async e=>{
-    e.preventDefault();
-    const email = document.getElementById('authEmail').value.trim();
-    const errEl = document.getElementById('authError');
-    if(!email){ errEl.textContent='Enter your email first.'; errEl.classList.add('show'); return; }
-    errEl.classList.remove('show');
-    const { error } = await _sb.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.href
-    });
-    if(error){ errEl.textContent=error.message; errEl.classList.add('show'); return; }
-    document.getElementById('authResetMsg').style.display='';
-  });
-
-  // ── Cloud submit (sign in or register) ──
-  async function doSubmit(){
+  // ── SIGN IN ──────────────────────────────────────────────────────
+  async function doSignIn(){
     const email    = document.getElementById('authEmail').value.trim();
     const password = document.getElementById('authPassword').value;
-    const isLogin  = document.getElementById('tabLogin').classList.contains('active');
     const errEl    = document.getElementById('authError');
     const btn      = document.getElementById('authSubmitBtn');
     document.getElementById('authResetMsg').style.display='none';
     if(!email){ errEl.textContent='Please enter your email.'; errEl.classList.add('show'); return; }
     if(!password){ errEl.textContent='Please enter a password.'; errEl.classList.add('show'); return; }
-    if(!isLogin && password.length<8){ errEl.textContent='Password must be at least 8 characters.'; errEl.classList.add('show'); return; }
-    btn.disabled=true; btn.textContent='Verifying…';
+    btn.disabled=true; btn.textContent='Signing in…';
     errEl.classList.remove('show');
-
-    if(isLogin){
+    try{
       const { data, error } = await _sb.auth.signInWithPassword({ email, password });
-      if(error){ errEl.textContent=error.message; errEl.classList.add('show'); btn.disabled=false; btn.textContent='Sign In'; return; }
+      if(error) throw error;
       btn.textContent='✓ Signed in';
       _localMode = false;
       await _bootUser(data.user, ov);
-    } else {
+    }catch(err){
+      const msg = _friendlyAuthError(err);
+      errEl.textContent=msg; errEl.classList.add('show');
+      btn.disabled=false; btn.textContent='Sign In';
+    }
+  }
+
+  // ── REGISTER ────────────────────────────────────────────────────
+  async function doRegister(){
+    const email    = document.getElementById('authRegEmail').value.trim();
+    const password = document.getElementById('authRegPassword').value;
+    const errEl    = document.getElementById('authRegError');
+    const btn      = document.getElementById('authRegisterBtn');
+    if(!email){ errEl.textContent='Please enter your email.'; errEl.classList.add('show'); return; }
+    if(!password){ errEl.textContent='Please enter a password.'; errEl.classList.add('show'); return; }
+    if(password.length<8){ errEl.textContent='Password must be at least 8 characters.'; errEl.classList.add('show'); return; }
+    btn.disabled=true; btn.textContent='Creating…';
+    errEl.classList.remove('show');
+    try{
       const { data, error } = await _sb.auth.signUp({ email, password });
-      if(error){ errEl.textContent=error.message; errEl.classList.add('show'); btn.disabled=false; btn.textContent='Create Account'; return; }
+      if(error) throw error;
       if(data.user && data.session){
         btn.textContent='✓ Account created';
         _localMode = false;
@@ -6091,18 +6124,70 @@ async function _initAuth(){
         errEl.textContent='✓ Confirmation email sent — click the link to activate your account.';
         errEl.classList.add('show');
       }
+    }catch(err){
+      const msg = _friendlyAuthError(err);
+      errEl.textContent=msg; errEl.classList.add('show');
+      btn.disabled=false; btn.textContent='Create Account';
     }
   }
 
-  document.getElementById('authSubmitBtn').addEventListener('click', doSubmit);
-  document.getElementById('authPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doSubmit(); });
+  document.getElementById('authSubmitBtn').addEventListener('click', doSignIn);
+  document.getElementById('authPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doSignIn(); });
   document.getElementById('authEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('authPassword').focus(); });
+  document.getElementById('authRegisterBtn').addEventListener('click', doRegister);
+  document.getElementById('authRegPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doRegister(); });
+  document.getElementById('authRegEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('authRegPassword').focus(); });
 
-  // ── Config help ──
+  // ── Forgot password ──────────────────────────────────────────────
+  document.getElementById('authForgotLink').addEventListener('click', async e=>{
+    e.preventDefault();
+    const email = document.getElementById('authEmail').value.trim();
+    const errEl = document.getElementById('authError');
+    if(!email){ errEl.textContent='Enter your email first.'; errEl.classList.add('show'); return; }
+    errEl.classList.remove('show');
+    try{
+      const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
+      if(error) throw error;
+      document.getElementById('authResetMsg').style.display='';
+    }catch(err){
+      errEl.textContent=_friendlyAuthError(err); errEl.classList.add('show');
+    }
+  });
+
+  // ── Config help ──────────────────────────────────────────────────
   document.getElementById('authConfigHelp').addEventListener('click', e=>{
     e.preventDefault();
-    alert('Setup instructions:\n\n1. Go to https://supabase.com → create a free project\n2. In your project: SQL Editor → run the setup SQL (see README or comments in this file)\n3. Project Settings → API → copy URL and anon key\n4. Edit this HTML file: find SUPABASE_URL and SUPABASE_ANON_KEY near the top of the <script> and paste your values\n5. Reload — done!');
+    alert('Setup:\n\n1. supabase.com → new free project\n2. SQL Editor → run the setup SQL from the guide\n3. Project Settings → API → copy URL + anon key\n4. Edit this HTML: find SUPABASE_URL and SUPABASE_ANON near the top of the <script> and paste your values\n5. Reload — done!');
   });
+}
+
+// ── Friendly error messages for common Supabase auth errors ──────────
+function _friendlyAuthError(err){
+  if(!err) return 'Unknown error.';
+  const raw = (err.message || err.toString() || '').toLowerCase();
+  // Detect HTML response (misconfigured URL / wrong endpoint)
+  if(raw.includes('<html') || raw.includes('<!doctype') || raw.includes('unexpected token') || raw.includes('is not valid json')){
+    return '⚠ Could not reach Supabase. Please check that your SUPABASE_URL is correct (no trailing slash) and matches your project URL exactly.';
+  }
+  if(raw.includes('invalid login credentials') || raw.includes('invalid email or password')){
+    return 'Incorrect email or password.';
+  }
+  if(raw.includes('email not confirmed')){
+    return 'Please confirm your email first — check your inbox for the confirmation link.';
+  }
+  if(raw.includes('user already registered')){
+    return 'An account with this email already exists. Try signing in instead.';
+  }
+  if(raw.includes('password should be')){
+    return 'Password must be at least 8 characters.';
+  }
+  if(raw.includes('rate limit') || raw.includes('too many')){
+    return 'Too many attempts. Please wait a minute and try again.';
+  }
+  if(raw.includes('network') || raw.includes('fetch')){
+    return 'Network error. Check your internet connection.';
+  }
+  return err.message || 'Something went wrong. Please try again.';
 }
 
 const V_START=1,V_END=52,V_TOTAL=V_END-V_START+1;
