@@ -395,6 +395,39 @@
 }
 .aip-refine-btn:hover{background:rgba(31,122,140,0.35);color:#fff;border-color:var(--teal2);}
 .aip-refine-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── Voice-to-text mic button ── */
+.aip-mic-btn{
+  background:rgba(31,122,140,0.08);
+  border:0.5px solid var(--border-mid);
+  color:var(--muted);
+  border-radius:6px;
+  width:30px;height:30px;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;
+  transition:all .22s;
+  flex-shrink:0;
+  position:relative;
+}
+.aip-mic-btn:hover{background:rgba(31,122,140,0.18);border-color:var(--teal);color:var(--teal2);}
+.aip-mic-btn.recording{
+  background:rgba(242,108,108,0.14);
+  border-color:rgba(242,108,108,0.55);
+  color:var(--red);
+  animation:micPulse .8s ease-in-out infinite;
+}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(242,108,108,0.4);}50%{box-shadow:0 0 0 5px rgba(242,108,108,0);}}
+.aip-mic-btn:disabled{opacity:.35;cursor:not-allowed;}
+/* context-area mic sits in the top-right of its wrapper */
+.aip-context-mic-wrap{
+  position:relative;
+}
+.aip-context-mic-wrap .aip-mic-btn{
+  position:absolute;right:8px;top:8px;
+  width:26px;height:26px;font-size:.78rem;
+}
+
 .aip-refine-thinking{
   font-family:'JetBrains Mono',monospace;font-size:.6rem;
   color:var(--teal2);animation:aiPulse 1.4s ease-in-out infinite;
@@ -4911,9 +4944,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 
         <div style="margin-top:14px;">
           <div class="aip-sec"><span>Context <span style="color:var(--muted2);font-size:.5rem;">(optional)</span></span></div>
-          <div class="aip-context-wrap">
-            <textarea class="aip-context-ta" id="aipContextTa" rows="3"
+          <div class="aip-context-wrap aip-context-mic-wrap">
+            <textarea class="aip-context-ta" id="aipContextTa" rows="3" style="padding-right:38px;"
               placeholder="e.g. I have a referee match at 18:00, prefer gym in the morning, studying needs at least 2 hours, need 30 min for lunch…"></textarea>
+            <button class="aip-mic-btn" id="aipContextMicBtn" title="Voice input — speak your context">🎙</button>
           </div>
         </div>
 
@@ -4944,6 +4978,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
           <span style="font-size:1rem;flex-shrink:0;">🤖</span>
           <input class="aip-refine-input" id="aipRefineInput"
             placeholder="e.g. add 20min travel to gym before recovery, add reading 22:00–22:30, add daily meeting 10:30–11:00…" />
+          <button class="aip-mic-btn" id="aipRefineMicBtn" title="Voice input — speak your refinement">🎙</button>
           <div class="aip-refine-thinking" id="aipRefineThinking">Thinking…</div>
           <button class="aip-refine-btn" id="aipRefineBtn">↺ Refine</button>
         </div>
@@ -5050,6 +5085,23 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
       </div>
       <button class="settings-save-key-btn" id="settingsSaveKeyBtn">Save Key</button>
       <div class="settings-key-status" id="settingsKeyStatus"></div>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <!-- Voice-to-Text (optional AssemblyAI) -->
+    <div class="settings-section">
+      <div class="settings-section-label">🎙 Voice-to-Text</div>
+      <div class="settings-section-desc">The mic button uses your browser's free built-in speech recognition. If your browser doesn't support it, you can optionally add an <a href="https://www.assemblyai.com/" target="_blank" rel="noopener" style="color:var(--teal2);text-decoration:none;">AssemblyAI</a> key as a fallback — free tier gives 100 hours/month.</div>
+      <div class="settings-key-wrap">
+        <input type="password" class="settings-key-input" id="settingsAssemblyKey" placeholder="Optional — leave blank to use browser speech" autocomplete="off" spellcheck="false">
+        <button class="settings-key-toggle" id="settingsAssemblyKeyToggle" title="Show/hide">👁</button>
+      </div>
+      <div class="settings-key-hint">
+        Get a free key at <a href="https://www.assemblyai.com/dashboard/signup" target="_blank" rel="noopener">assemblyai.com</a> — only used if browser speech recognition is unavailable.
+      </div>
+      <button class="settings-save-key-btn" id="settingsSaveAssemblyKeyBtn">Save Voice Key</button>
+      <div class="settings-key-status" id="settingsAssemblyKeyStatus"></div>
     </div>
 
     <div class="settings-divider"></div>
@@ -9954,6 +10006,9 @@ function _applyDataPack(raw){
     // Populate key field (masked)
     const keyInp = document.getElementById('settingsGeminiKey');
     if(keyInp) keyInp.value = localStorage.getItem(KEY_GEMINI)||'';
+    // Populate AssemblyAI key field
+    const asmInp = document.getElementById('settingsAssemblyKey');
+    if(asmInp) asmInp.value = localStorage.getItem('dcmd_assembly_apikey')||'';
     // Populate profile field
     const profileInp = document.getElementById('settingsProfileText');
     if(profileInp) profileInp.value = localStorage.getItem('dcmd_ai_profile')||'';
@@ -9995,6 +10050,20 @@ function _applyDataPack(raw){
   document.getElementById('settingsKeyToggle').addEventListener('click',()=>{
     const inp = document.getElementById('settingsGeminiKey');
     inp.type = inp.type==='password' ? 'text' : 'password';
+  });
+
+  // ── AssemblyAI key toggle/save ───────────────────────────────────────
+  document.getElementById('settingsAssemblyKeyToggle').addEventListener('click',()=>{
+    const inp = document.getElementById('settingsAssemblyKey');
+    inp.type = inp.type==='password' ? 'text' : 'password';
+  });
+  document.getElementById('settingsSaveAssemblyKeyBtn').addEventListener('click',()=>{
+    const val = (document.getElementById('settingsAssemblyKey').value||'').trim();
+    const st  = document.getElementById('settingsAssemblyKeyStatus');
+    try{ if(val) localStorage.setItem('dcmd_assembly_apikey', val); else localStorage.removeItem('dcmd_assembly_apikey'); }catch(e){}
+    st.textContent = val ? '✓ Voice key saved.' : '✓ Key cleared — browser speech will be used.';
+    st.style.color = 'var(--green)';
+    setTimeout(()=>{ st.textContent=''; }, 2500);
   });
   document.getElementById('settingsSaveKeyBtn').addEventListener('click',()=>{
     const val = (document.getElementById('settingsGeminiKey').value||'').trim();
@@ -11535,6 +11604,217 @@ EXACT FORMAT:
   function escH(s){
     const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;
   }
+
+})();
+
+// ═══════════════════════════════════════════════════════════════════════
+// VOICE-TO-TEXT — Web Speech API (free, no key) + AssemblyAI fallback
+// Wires the 🎙 buttons in AI Planner: context textarea + refine input
+// ═══════════════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+
+  const KEY_ASM = 'dcmd_assembly_apikey';
+
+  // ── detect browser speech support ──────────────────────────────────
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+
+  // Active recognition instance (only one at a time)
+  let _activeRec = null;
+
+  // ── Shared mic toggle logic ─────────────────────────────────────────
+  // targetEl   : the textarea or input to fill
+  // btnEl      : the mic button element
+  // appendMode : if true, append transcript to existing text (textarea)
+  //              if false, replace input value (text input)
+  function setupMicButton(btnEl, targetEl, appendMode){
+    if(!btnEl || !targetEl) return;
+
+    btnEl.addEventListener('click', async ()=>{
+      // If already recording for this button, stop it
+      if(btnEl.classList.contains('recording')){
+        if(_activeRec){ try{ _activeRec.stop(); }catch(e){} _activeRec=null; }
+        btnEl.classList.remove('recording');
+        btnEl.title = 'Voice input';
+        return;
+      }
+
+      // Stop any other active recording
+      if(_activeRec){ try{ _activeRec.stop(); }catch(e){} _activeRec=null; }
+      // Reset any other mic buttons
+      document.querySelectorAll('.aip-mic-btn.recording').forEach(b=>{ b.classList.remove('recording'); b.textContent='🎙'; b.title='Voice input'; });
+
+      // Prefer browser speech recognition (free, instant)
+      if(SpeechRecognition){
+        startBrowserSpeech(btnEl, targetEl, appendMode);
+      } else {
+        // Fallback: AssemblyAI (requires key + microphone MediaRecorder)
+        const asmKey = (localStorage.getItem(KEY_ASM)||'').trim();
+        if(!asmKey){
+          showToast('🎙 Browser speech not supported. Add an AssemblyAI key in Settings for voice input.');
+          return;
+        }
+        startAssemblyAI(btnEl, targetEl, appendMode, asmKey);
+      }
+    });
+  }
+
+  // ── Web Speech API (browser-native, free) ──────────────────────────
+  function startBrowserSpeech(btnEl, targetEl, appendMode){
+    const rec = new SpeechRecognition();
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.lang = navigator.language || 'en-US';
+    _activeRec = rec;
+
+    btnEl.classList.add('recording');
+    btnEl.textContent = '⏹';
+    btnEl.title = 'Click to stop recording';
+
+    rec.onresult = (e)=>{
+      const transcript = Array.from(e.results).map(r=>r[0].transcript).join(' ').trim();
+      if(transcript){
+        if(appendMode){
+          const cur = targetEl.value.trim();
+          targetEl.value = cur ? cur + ' ' + transcript : transcript;
+        } else {
+          targetEl.value = transcript;
+        }
+        targetEl.dispatchEvent(new Event('input'));
+        targetEl.focus();
+      }
+    };
+
+    rec.onerror = (e)=>{
+      if(e.error !== 'aborted'){
+        const msgs = {
+          'not-allowed': 'Microphone access denied. Allow mic in your browser settings.',
+          'no-speech': 'No speech detected. Try again.',
+          'network': 'Network error during speech recognition.',
+        };
+        showToast('🎙 ' + (msgs[e.error] || 'Speech error: ' + e.error));
+      }
+      _cleanup();
+    };
+
+    rec.onend = ()=>{ _cleanup(); };
+
+    rec.start();
+
+    function _cleanup(){
+      btnEl.classList.remove('recording');
+      btnEl.textContent = '🎙';
+      btnEl.title = 'Voice input';
+      if(_activeRec === rec) _activeRec = null;
+    }
+  }
+
+  // ── AssemblyAI fallback (free tier: 100 hrs/month) ──────────────────
+  // Records via MediaRecorder → uploads WAV blob → polls for transcript
+  function startAssemblyAI(btnEl, targetEl, appendMode, apiKey){
+    let mediaRec, chunks=[], stream;
+
+    navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{
+      stream = s;
+      mediaRec = new MediaRecorder(stream);
+      chunks = [];
+
+      mediaRec.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
+
+      mediaRec.onstop = async ()=>{
+        stream.getTracks().forEach(t=>t.stop());
+        btnEl.classList.remove('recording');
+        btnEl.textContent = '🎙';
+        btnEl.title = 'Voice input';
+        btnEl.disabled = true;
+        showToast('🎙 Processing audio…');
+
+        const blob = new Blob(chunks, {type:'audio/webm'});
+        try{
+          // 1. Upload audio
+          const upResp = await fetch('https://api.assemblyai.com/v2/upload',{
+            method:'POST',
+            headers:{'authorization': apiKey},
+            body: blob
+          });
+          if(!upResp.ok) throw new Error('Upload failed '+upResp.status);
+          const {upload_url} = await upResp.json();
+
+          // 2. Submit transcription job
+          const txResp = await fetch('https://api.assemblyai.com/v2/transcript',{
+            method:'POST',
+            headers:{'authorization': apiKey, 'content-type':'application/json'},
+            body: JSON.stringify({audio_url: upload_url})
+          });
+          if(!txResp.ok) throw new Error('Transcription request failed '+txResp.status);
+          const {id} = await txResp.json();
+
+          // 3. Poll for result (up to 30s)
+          let attempts=0;
+          const poll = async ()=>{
+            if(attempts++ > 30){ throw new Error('Transcription timed out'); }
+            const polResp = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`,{
+              headers:{'authorization': apiKey}
+            });
+            const result = await polResp.json();
+            if(result.status === 'completed'){
+              const transcript = (result.text||'').trim();
+              if(transcript){
+                if(appendMode){
+                  const cur = targetEl.value.trim();
+                  targetEl.value = cur ? cur + ' ' + transcript : transcript;
+                } else {
+                  targetEl.value = transcript;
+                }
+                targetEl.dispatchEvent(new Event('input'));
+                targetEl.focus();
+              }
+              showToast('🎙 Transcription complete!');
+            } else if(result.status === 'error'){
+              throw new Error(result.error || 'Transcription error');
+            } else {
+              await new Promise(r=>setTimeout(r,1000));
+              await poll();
+            }
+          };
+          await poll();
+        } catch(err){
+          showToast('🎙 Voice error: ' + err.message);
+        } finally {
+          btnEl.disabled = false;
+          if(_activeRec === mediaRec) _activeRec = null;
+        }
+      };
+
+      _activeRec = mediaRec;
+      btnEl.classList.add('recording');
+      btnEl.textContent = '⏹';
+      btnEl.title = 'Click to stop & transcribe';
+      mediaRec.start();
+
+    }).catch(err=>{
+      showToast('🎙 Mic access denied: ' + err.message);
+    });
+  }
+
+  // ── Wire buttons once DOM is ready ─────────────────────────────────
+  // Both buttons exist in the static HTML so we can wire immediately
+  // but we guard with DOMContentLoaded just in case
+  function _wire(){
+    setupMicButton(
+      document.getElementById('aipContextMicBtn'),
+      document.getElementById('aipContextTa'),
+      true   // append — context textarea accumulates notes
+    );
+    setupMicButton(
+      document.getElementById('aipRefineMicBtn'),
+      document.getElementById('aipRefineInput'),
+      false  // replace — refine is a single command
+    );
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _wire);
+  else _wire();
 
 })();
 
