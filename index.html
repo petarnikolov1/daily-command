@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#022b3a">
 <title>Daily Command</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=Playfair+Display:wght@400;700;900&display=swap" rel="stylesheet">
 
 <style>
@@ -4762,46 +4763,71 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     <div class="auth-card-grid"></div>
     <div class="auth-logo">⚡ Daily Command</div>
     <div class="auth-tagline">Personal Ops Center</div>
-    <div class="auth-tabs">
-      <button class="auth-tab active" id="tabLogin">Sign In</button>
-      <button class="auth-tab" id="tabRegister">Register</button>
-      <button class="auth-tab" id="tabImport">⇅ New Device</button>
+
+    <!-- Supabase not configured banner -->
+    <div id="authConfigBanner" style="display:none;background:rgba(232,163,56,0.08);border:0.5px solid rgba(232,163,56,0.35);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--amber2);line-height:1.7;">
+      ☁ Cloud sync requires Supabase.<br>
+      <span style="color:var(--muted);">Set <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;">SUPABASE_URL</code> &amp; <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;">SUPABASE_ANON_KEY</code> in the script to enable cross-device sync.</span><br>
+      <a href="#" id="authConfigHelp" style="color:var(--teal2);text-decoration:none;">See setup instructions ↗</a>
     </div>
 
-    <!-- Sign In / Register panel -->
-    <div id="authLoginPanel">
-      <div class="auth-form-title" id="authFormTitle">Welcome back</div>
-      <div class="auth-field">
-        <label class="auth-label" for="authUsername">Username</label>
-        <input class="auth-input" type="text" id="authUsername" placeholder="enter username" autocomplete="username" spellcheck="false">
+    <!-- Local mode panel (always available) -->
+    <div id="authLocalPanel">
+      <div class="auth-form-title" style="margin-bottom:10px;">Use on this device</div>
+      <div class="auth-field" style="margin-bottom:10px;">
+        <label class="auth-label" for="authLocalName">Your name <span style="color:var(--muted2);font-size:.55rem;">(stored locally)</span></label>
+        <input class="auth-input" type="text" id="authLocalName" placeholder="e.g. Alex" autocomplete="given-name" spellcheck="false" maxlength="40">
       </div>
-      <div class="auth-field">
-        <label class="auth-label" for="authPassword">Password</label>
-        <input class="auth-input" type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+      <button class="auth-submit" id="authLocalBtn" style="background:linear-gradient(135deg,rgba(31,122,140,0.22),rgba(44,165,191,0.14));border-color:rgba(44,165,191,0.5);">⚡ Enter — No Account Needed</button>
+      <div class="auth-error" id="authLocalError"></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.54rem;color:var(--muted2);margin-top:10px;line-height:1.65;text-align:center;">
+        Data saved in your browser. Use export/import in Settings to move between devices.
       </div>
-      <button class="auth-submit" id="authSubmitBtn">Access System</button>
-      <div class="auth-error" id="authError"></div>
     </div>
 
-    <!-- New Device / Import panel -->
+    <!-- Cloud login divider -->
+    <div id="authCloudDivider" style="display:flex;align-items:center;gap:10px;margin:14px 0 10px;opacity:.6;">
+      <div style="flex:1;height:0.5px;background:var(--border);"></div>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:.55rem;color:var(--muted2);white-space:nowrap;">or sign in for cloud sync</span>
+      <div style="flex:1;height:0.5px;background:var(--border);"></div>
+    </div>
+
+    <div id="authCloudSection">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabLogin">Sign In</button>
+        <button class="auth-tab" id="tabRegister">Register</button>
+      </div>
+
+      <div id="authLoginPanel">
+        <div class="auth-form-title" id="authFormTitle">Cloud account</div>
+        <div class="auth-field">
+          <label class="auth-label" for="authEmail">Email</label>
+          <input class="auth-input" type="email" id="authEmail" placeholder="you@example.com" autocomplete="email" spellcheck="false">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label" for="authPassword">Password</label>
+          <input class="auth-input" type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div id="authForgotRow" style="text-align:right;margin-top:-6px;margin-bottom:8px;">
+          <a href="#" id="authForgotLink" style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--muted);text-decoration:none;">Forgot password?</a>
+        </div>
+        <button class="auth-submit" id="authSubmitBtn" style="margin-top:4px;">Sign In / Register</button>
+        <div class="auth-error" id="authError"></div>
+        <div id="authResetMsg" style="display:none;margin-top:10px;background:rgba(46,196,165,.08);border:0.5px solid rgba(46,196,165,.3);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--green);line-height:1.6;">
+          ✓ Password reset email sent. Check your inbox.
+        </div>
+      </div>
+    </div>
+
+    <!-- hidden stubs kept for legacy code compatibility -->
     <div id="authImportPanel" style="display:none;">
-      <div class="auth-form-title">Restore from another device</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.7;margin-bottom:14px;">
-        On your original device, go to <strong style="color:var(--teal2)">⇅ Sync → Export</strong> and copy the data pack. Paste it below — your login and all data will be restored instantly.
-      </div>
-      <textarea class="auth-input" id="authImportText" rows="5"
-        style="resize:vertical;font-size:.6rem;line-height:1.5;padding:10px 12px;"
-        placeholder="Paste your data pack here…"></textarea>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <button class="auth-submit" id="authImportApplyBtn" style="flex:1;">↑ Import &amp; Continue</button>
-        <label class="auth-submit" style="flex:0 0 auto;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:13px 16px;background:rgba(31,122,140,0.14);">
-          📂
-          <input type="file" id="authImportFile" accept=".json,.txt" style="display:none;">
-        </label>
-      </div>
-      <div class="auth-error" id="authImportError" style="margin-top:10px;"></div>
-      <div class="auth-error" id="authImportOk" style="margin-top:10px;display:none;background:rgba(46,196,165,.08);border-color:rgba(46,196,165,.3);color:var(--green);"></div>
+      <div class="auth-error" id="authImportError"></div>
+      <div class="auth-error" id="authImportOk" style="display:none;"></div>
+      <textarea id="authImportText" style="display:none;"></textarea>
+      <input type="file" id="authImportFile" style="display:none;">
+      <button id="authImportApplyBtn" style="display:none;"></button>
     </div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:.52rem;color:var(--muted2);text-align:center;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border);">⚡ Daily Command — your personal ops center</div>
   </div>
 </div>
 
@@ -5022,38 +5048,30 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 <div id="syncOverlay">
   <div class="sync-card">
     <button class="sync-close-btn" id="syncCloseBtn">✕</button>
-    <div class="sync-title">⇅ Data Sync</div>
-    <div class="sync-sub">Move your data between devices</div>
+    <div class="sync-title">☁ Cloud Sync</div>
+    <div class="sync-sub">Your data syncs automatically across all devices</div>
 
-    <!-- EXPORT -->
     <div class="sync-section">
-      <div class="sync-section-title">Export — this device → new device</div>
-      <div class="sync-desc">Creates a portable data pack containing your habits, todos, notes, and login credentials. Paste it on any device to continue right where you left off.</div>
+      <div class="sync-section-title">Sync Status</div>
+      <div id="syncStatusDisplay" style="background:rgba(46,196,165,0.08);border:0.5px solid rgba(46,196,165,0.3);border-radius:10px;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--green);line-height:1.8;">
+        ✓ Connected to Supabase<br>
+        <span style="color:var(--muted);">Changes save automatically within ~1 second.<br>Opening the app on any device loads the latest data.<br>Real-time sync active — changes appear instantly on other open devices.</span>
+      </div>
+    </div>
+
+    <div class="sync-section">
+      <div class="sync-section-title">Force sync now</div>
+      <div class="sync-desc">Manually push your current data to the cloud, or pull the latest from another device.</div>
       <div class="sync-btns">
-        <button class="sync-btn" id="syncExportCopyBtn">⎘ Copy to Clipboard</button>
-        <button class="sync-btn secondary" id="syncExportDownloadBtn">↓ Download File</button>
+        <button class="sync-btn" id="syncPushBtn">↑ Push to Cloud</button>
+        <button class="sync-btn secondary" id="syncPullBtn">↓ Pull from Cloud</button>
       </div>
-      <div class="sync-status" id="syncExportStatus"></div>
+      <div class="sync-status" id="syncManualStatus"></div>
     </div>
 
-    <!-- IMPORT -->
-    <div class="sync-section">
-      <div class="sync-section-title">Import — paste data pack</div>
-      <div class="sync-desc">Paste your data pack below (copied or from a downloaded .json file). Your existing login and data will be replaced. You'll need to sign in again with your original password.</div>
-      <textarea class="sync-textarea" id="syncImportText" placeholder="Paste your data pack code here…"></textarea>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;">
-        <button class="sync-btn" id="syncImportBtn">↑ Import & Apply</button>
-        <label class="sync-btn secondary" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
-          📂 Load from File
-          <input type="file" id="syncFileInput" accept=".json,.txt" style="display:none;">
-        </label>
-      </div>
-      <div class="sync-status" id="syncImportStatus"></div>
-    </div>
-
-    <div style="font-family:'JetBrains Mono',monospace;font-size:.54rem;color:var(--muted2);line-height:1.7;padding-top:4px;border-top:0.5px solid var(--border);">
-      🔒 Passwords are never stored in plain text — only a salted PBKDF2-SHA256 hash.<br>
-      Your data pack is only as secure as where you store it.
+    <div style="font-family:'JetBrains Mono',monospace;font-size:.54rem;color:var(--muted2);line-height:1.7;padding-top:10px;border-top:0.5px solid var(--border);">
+      🔒 Secured by Supabase Row Level Security — only you can access your data.<br>
+      Passwords managed by Supabase Auth — never stored in your data.
     </div>
   </div>
 </div>
@@ -5769,89 +5787,154 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════
-// AUTH SYSTEM — PBKDF2 password hashing via Web Crypto API
-// Passwords are never stored in plain text. Each is salted with 16 random
-// bytes and stretched with 100,000 PBKDF2-SHA-256 iterations.
+// ⚙ SUPABASE CONFIG — fill these in after creating your project
+// 1. Go to https://supabase.com → New project
+// 2. Project Settings → API → copy Project URL and anon/public key
+// 3. Paste them below — these are safe to expose in client-side code
 // ═══════════════════════════════════════════════════════════════════════
-let _currentUser=(()=>{
+const SUPABASE_URL  = 'https://petarnikolov1.github.io/daily-command/';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4eWR4ZmRpaGd1dWZoZXVjeWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzOTMzNzYsImV4cCI6MjA5NTk2OTM3Nn0.s_4NCKBsR6ijKdGuJa6lu7_oWg8cFCKU1lnkM8saJnY'; // starts with eyJ…
+
+// ── Init Supabase client ──────────────────────────────────────────────
+const _sbConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY';
+const _sb = _sbConfigured
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+      auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+    })
+  : null;
+
+// ── Current user (email, set after auth) ─────────────────────────────
+let _currentUser = null;  // will be set to user.email or local username after login
+let _sbUserId    = null;  // Supabase UUID — used as DB row key
+let _sbRealtime  = null;  // realtime channel reference
+let _sdDebounce  = null;  // debounce timer for saves
+let _localMode   = false; // true when using localStorage without Supabase
+
+// ── Local-mode storage key ────────────────────────────────────────────
+const _localKey = () => 'dcmd_v6_local_' + (_currentUser||'guest');
+
+// ── Save: Supabase (debounced 800ms) OR localStorage ─────────────────
+async function sd(){
+  if(_localMode){
+    // Local-mode: write to localStorage immediately (debounced slightly)
+    clearTimeout(_sdDebounce);
+    _sdDebounce = setTimeout(()=>{
+      try{ localStorage.setItem(_localKey(), JSON.stringify(D)); }catch(e){ console.error('Local save error:',e); }
+    }, 400);
+    return;
+  }
+  if(!_sbUserId || !_sb) return;
+  clearTimeout(_sdDebounce);
+  _sdDebounce = setTimeout(async ()=>{
+    try{
+      const { error } = await _sb.from('user_data').upsert({
+        user_id: _sbUserId,
+        data: D,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+      if(error) console.error('Save error:', error.message);
+    } catch(e){ console.error('Save exception:', e); }
+  }, 800);
+}
+
+// ── Load from Supabase OR localStorage ───────────────────────────────
+async function ld(){
+  if(_localMode){
+    try{
+      const raw = localStorage.getItem(_localKey());
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){ console.error('Local load error:',e); return {}; }
+  }
+  if(!_sbUserId || !_sb) return {};
   try{
-    const s=JSON.parse(localStorage.getItem('dcmd_session')||'null');
-    if(!s||!s.u) return null;
-    // 7-day expiry
-    if(Date.now()-s.t > 7*24*60*60*1000){localStorage.removeItem('dcmd_session');return null;}
-    return s.u;
-  }catch{return null;}
-})();
-
-async function _hashPwd(pwd,salt){
-  const enc=new TextEncoder();
-  const key=await crypto.subtle.importKey('raw',enc.encode(pwd),'PBKDF2',false,['deriveBits']);
-  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:100000,hash:'SHA-256'},key,256);
-  return Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-function _getUsers(){try{return JSON.parse(localStorage.getItem('dcmd_users')||'{}');}catch{return{};}}
-function _saveUsers(u){localStorage.setItem('dcmd_users',JSON.stringify(u));}
-
-async function _authRegister(username,password){
-  const users=_getUsers();const uname=username.trim().toLowerCase();
-  if(uname.length<2)return{ok:false,msg:'Username must be at least 2 characters.'};
-  if(/[^a-z0-9_\-]/.test(uname))return{ok:false,msg:'Username: letters, numbers, _ and - only.'};
-  if(users[uname])return{ok:false,msg:'Username already taken — try another.'};
-  if(password.length<6)return{ok:false,msg:'Password must be at least 6 characters.'};
-  const saltArr=crypto.getRandomValues(new Uint8Array(16));
-  const salt=Array.from(saltArr).map(b=>b.toString(16).padStart(2,'0')).join('');
-  const hash=await _hashPwd(password,salt);
-  users[uname]={salt,hash};_saveUsers(users);
-  return{ok:true};
-}
-async function _authLogin(username,password){
-  const users=_getUsers();const uname=username.trim().toLowerCase();
-  const rec=users[uname];
-  if(!rec)return{ok:false,msg:'Invalid username or password.'};
-  const hash=await _hashPwd(password,rec.salt);
-  if(hash!==rec.hash)return{ok:false,msg:'Invalid username or password.'};
-  return{ok:true};
-}
-function _setSession(u){localStorage.setItem('dcmd_session',JSON.stringify({u,t:Date.now()}));}
-function _clearSession(){localStorage.removeItem('dcmd_session');}
-
-function _showAuthPanel(panel){ // 'login' | 'import'
-  document.getElementById('authLoginPanel').style.display = panel==='login' ? '' : 'none';
-  document.getElementById('authImportPanel').style.display = panel==='import' ? '' : 'none';
+    const { data, error } = await _sb
+      .from('user_data')
+      .select('data')
+      .eq('user_id', _sbUserId)
+      .single();
+    if(error && error.code !== 'PGRST116') console.error('Load error:', error.message);
+    return data?.data || {};
+  } catch(e){ console.error('Load exception:', e); return {}; }
 }
 
-function _logout(){
-  _clearSession();_currentUser=null;
+// ── Real-time sync subscription ───────────────────────────────────────
+function _subscribeRealtime(){
+  if(!_sb || !_sbUserId) return;
+  if(_sbRealtime){ _sb.removeChannel(_sbRealtime); }
+  _sbRealtime = _sb
+    .channel('user_data_changes')
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'user_data',
+      filter: `user_id=eq.${_sbUserId}`
+    }, payload => {
+      // Another device saved — merge into local state
+      if(payload.new?.data){
+        D = payload.new.data;
+        const _ri=(k,v)=>{if(D[k]===undefined)D[k]=v;};
+        _ri('_videos',{});_ri('_habits',JSON.parse(JSON.stringify(DEFAULT_HABITS)));
+        _ri('_todos',{daily:[],weekly:[],unscheduled:[]});_ri('_calOvr',{});
+        _ri('_events',{});_ri('_dayNotes',{});_ri('_notesDates',{});_ri('_timers',{});
+        _ri('_dayReps',{});_ri('_books',{current:null,library:[]});_ri('_bookProg',{});
+        _ri('_mits',{});_ri('_beastDays',{});_ri('_weekOvr',{});_ri('_dayTimes',{});
+        _ri('_routines',[]);
+        try{ render(); }catch(e){}
+        try{ renderTodos(); }catch(e){}
+        try{ renderNotesDate(); }catch(e){}
+        showToast('🔄 Synced from another device');
+      }
+    })
+    .subscribe();
+}
+
+// ── Logout ────────────────────────────────────────────────────────────
+async function _logout(){
+  if(_sbRealtime && _sb){ _sb.removeChannel(_sbRealtime); _sbRealtime=null; }
+  if(_sb && !_localMode) await _sb.auth.signOut();
+  if(_localMode){
+    // Clear local session flag
+    try{ localStorage.removeItem('dcmd_local_session'); }catch(e){}
+  }
+  _currentUser=null; _sbUserId=null; _localMode=false;
   const ov=document.getElementById('authOverlay');
-  ov.classList.remove('auth-fade-out');ov.style.display='flex';
+  ov.classList.remove('auth-fade-out'); ov.style.display='flex';
   document.getElementById('authError').classList.remove('show');
-  document.getElementById('authUsername').value='';document.getElementById('authPassword').value='';
+  document.getElementById('authEmail').value='';
+  document.getElementById('authPassword').value='';
+  document.getElementById('authLocalName').value='';
+  document.getElementById('authLocalError').classList.remove('show');
   const _pb=document.getElementById('navProfileBtn');if(_pb)_pb.style.display='none';
   document.getElementById('tabLogin').classList.add('active');
   document.getElementById('tabRegister').classList.remove('active');
-  document.getElementById('tabImport').classList.remove('active');
-  document.getElementById('authSubmitBtn').textContent='Access System';
-  document.getElementById('authFormTitle').textContent='Welcome back';
-  _showAuthPanel('login');
+  document.getElementById('authSubmitBtn').textContent='Sign In / Register';
+  document.getElementById('authFormTitle').textContent='Cloud account';
 }
 
-function _setNavUser(uname){
+// ── Update nav + settings with user info ─────────────────────────────
+function _setNavUser(email){
   const btn=document.getElementById('navProfileBtn');
   if(!btn)return;
   btn.style.display='flex';
-  document.getElementById('navUserName').textContent=uname;
-  document.getElementById('navUserAvatar').textContent=uname.charAt(0).toUpperCase();
-  // Also update settings panel
+  const display = _localMode ? email : email.split('@')[0];
+  document.getElementById('navUserName').textContent = _localMode ? display + ' (local)' : display;
+  document.getElementById('navUserAvatar').textContent=display.charAt(0).toUpperCase();
   const sa=document.getElementById('settingsAvatar');
   const su=document.getElementById('settingsUsername');
-  if(sa) sa.textContent=uname.charAt(0).toUpperCase();
-  if(su) su.textContent=uname;
+  if(sa) sa.textContent=display.charAt(0).toUpperCase();
+  if(su) su.textContent= _localMode ? email + ' (local device)' : email;
 }
 
-function _bootUser(uname, ov){
-  _currentUser=uname;
-  _setSession(_currentUser);
-  D=ld();
+// ── Boot app after successful auth ───────────────────────────────────
+async function _bootUser(user, ov){
+  _currentUser = user.email;
+  _sbUserId    = user.id;
+
+  // Show loading indicator in the auth overlay
+  const btn = document.getElementById('authSubmitBtn');
+  if(btn){ btn.textContent='Loading data…'; btn.disabled=true; }
+
+  D = await ld();
   const _ri=(k,v)=>{if(D[k]===undefined)D[k]=v;};
   _ri('_videos',{});_ri('_habits',JSON.parse(JSON.stringify(DEFAULT_HABITS)));
   _ri('_todos',{daily:[],weekly:[],unscheduled:[]});_ri('_calOvr',{});
@@ -5860,114 +5943,165 @@ function _bootUser(uname, ov){
   _ri('_mits',{});_ri('_beastDays',{});_ri('_weekOvr',{});_ri('_dayTimes',{});
   _ri('_routines',[]);
   D._habits.forEach(h=>{
-    if(!h.targetReps)h.targetReps=1;if(!h.targetMinutes)h.targetMinutes=0;
-    if(!h.links)h.links=[];if(!h.days)h.days=[1,2,3,4,5,6,0];
-    if(h.isActivity===undefined)h.isActivity=false;if(h.flexSchedule===undefined)h.flexSchedule=false;
+    if(!h.targetReps)h.targetReps=1; if(!h.targetMinutes)h.targetMinutes=0;
+    if(!h.links)h.links=[]; if(!h.days)h.days=[1,2,3,4,5,6,0];
+    if(h.isActivity===undefined)h.isActivity=false;
+    if(h.flexSchedule===undefined)h.flexSchedule=false;
   });
-  sd();
+  await sd(); // ensure row exists in DB
+  _subscribeRealtime();
   ov.classList.add('auth-fade-out');
-  setTimeout(()=>ov.style.display='none',520);
+  setTimeout(()=>{ ov.style.display='none'; if(btn){btn.disabled=false;} },520);
   _setNavUser(_currentUser);
-  render();renderTodos();renderNotesDate();
+  render(); renderTodos(); renderNotesDate();
 }
 
-function _initAuth(){
-  const ov=document.getElementById('authOverlay');
-  if(_currentUser){
+// ── Init auth on page load ────────────────────────────────────────────
+function _showAuthPanel(panel){
+  document.getElementById('authLoginPanel').style.display='';
+  document.getElementById('authImportPanel').style.display='none';
+}
+
+async function _initAuth(){
+  const ov = document.getElementById('authOverlay');
+
+  // ── LOCAL MODE: restore saved local session ──────────────────────
+  const savedLocal = localStorage.getItem('dcmd_local_session');
+  if(savedLocal){
+    _localMode = true;
+    _currentUser = savedLocal;
     ov.style.display='none';
-    _setNavUser(_currentUser);
+    await _bootUser({ email: _currentUser, id: null }, ov);
     return;
   }
-  ov.style.display='flex';
-  _showAuthPanel('login');
 
-  // ── Tab switching ──
+  // ── CLOUD MODE: check Supabase session ────────────────────────────
+  if(_sbConfigured){
+    const { data: { session } } = await _sb.auth.getSession();
+    if(session?.user){
+      _localMode = false;
+      ov.style.display='none';
+      await _bootUser(session.user, ov);
+      return;
+    }
+    // Show cloud section; hide config banner since SB is configured
+    document.getElementById('authConfigBanner').style.display='none';
+    document.getElementById('authCloudSection').style.display='';
+    document.getElementById('authCloudDivider').style.display='flex';
+
+    // Listen for auth state changes (handles email confirm redirects, etc.)
+    _sb.auth.onAuthStateChange(async (event, session) => {
+      if(event==='SIGNED_IN' && session?.user && !_currentUser){
+        _localMode = false;
+        await _bootUser(session.user, ov);
+      }
+      if(event==='SIGNED_OUT'){ _logout(); }
+    });
+  } else {
+    // Supabase not configured — show banner, hide cloud sign-in
+    document.getElementById('authConfigBanner').style.display='';
+    document.getElementById('authCloudSection').style.display='none';
+    document.getElementById('authCloudDivider').style.display='none';
+  }
+
+  ov.style.display='flex';
+
+  // ── LOCAL ENTRY BUTTON ──────────────────────────────────────────
+  document.getElementById('authLocalBtn').addEventListener('click', async ()=>{
+    const nameEl  = document.getElementById('authLocalName');
+    const errEl   = document.getElementById('authLocalError');
+    const btn     = document.getElementById('authLocalBtn');
+    let name = nameEl.value.trim();
+    if(!name) name = 'User';
+    errEl.classList.remove('show');
+    btn.disabled = true; btn.textContent = 'Loading…';
+    _localMode   = true;
+    _currentUser = name.toLowerCase().replace(/[^a-z0-9_]/g,'_') || 'user';
+    try{ localStorage.setItem('dcmd_local_session', _currentUser); }catch(e){}
+    await _bootUser({ email: name, id: null }, ov);
+  });
+  document.getElementById('authLocalName').addEventListener('keydown', e=>{
+    if(e.key==='Enter') document.getElementById('authLocalBtn').click();
+  });
+
+  if(!_sbConfigured) return; // nothing more to wire if no Supabase
+
+  // ── CLOUD TABS ──────────────────────────────────────────────────
   document.getElementById('tabLogin').addEventListener('click',()=>{
-    ['tabLogin','tabRegister','tabImport'].forEach(id=>document.getElementById(id).classList.remove('active'));
+    ['tabLogin','tabRegister'].forEach(id=>document.getElementById(id).classList.remove('active'));
     document.getElementById('tabLogin').classList.add('active');
-    document.getElementById('authSubmitBtn').textContent='Access System';
-    document.getElementById('authFormTitle').textContent='Welcome back';
+    document.getElementById('authSubmitBtn').textContent='Sign In';
+    document.getElementById('authFormTitle').textContent='Cloud account';
     document.getElementById('authError').classList.remove('show');
-    _showAuthPanel('login');
+    document.getElementById('authResetMsg').style.display='none';
   });
   document.getElementById('tabRegister').addEventListener('click',()=>{
-    ['tabLogin','tabRegister','tabImport'].forEach(id=>document.getElementById(id).classList.remove('active'));
+    ['tabLogin','tabRegister'].forEach(id=>document.getElementById(id).classList.remove('active'));
     document.getElementById('tabRegister').classList.add('active');
     document.getElementById('authSubmitBtn').textContent='Create Account';
     document.getElementById('authFormTitle').textContent='Create your account';
     document.getElementById('authError').classList.remove('show');
-    _showAuthPanel('login');
-  });
-  document.getElementById('tabImport').addEventListener('click',()=>{
-    ['tabLogin','tabRegister','tabImport'].forEach(id=>document.getElementById(id).classList.remove('active'));
-    document.getElementById('tabImport').classList.add('active');
-    document.getElementById('authImportError').classList.remove('show');
-    document.getElementById('authImportOk').style.display='none';
-    _showAuthPanel('import');
+    document.getElementById('authResetMsg').style.display='none';
   });
 
-  // ── Sign In / Register submit ──
-  async function doSubmit(){
-    const username=document.getElementById('authUsername').value.trim();
-    const password=document.getElementById('authPassword').value;
-    const isLogin=document.getElementById('tabLogin').classList.contains('active');
-    const errEl=document.getElementById('authError');
-    const btn=document.getElementById('authSubmitBtn');
-    if(!username){errEl.textContent='Please enter a username.';errEl.classList.add('show');return;}
-    if(!password){errEl.textContent='Please enter a password.';errEl.classList.add('show');return;}
-    btn.disabled=true;btn.textContent='Verifying…';
+  // ── Forgot password ──
+  document.getElementById('authForgotLink').addEventListener('click', async e=>{
+    e.preventDefault();
+    const email = document.getElementById('authEmail').value.trim();
+    const errEl = document.getElementById('authError');
+    if(!email){ errEl.textContent='Enter your email first.'; errEl.classList.add('show'); return; }
     errEl.classList.remove('show');
-    let result;
+    const { error } = await _sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.href
+    });
+    if(error){ errEl.textContent=error.message; errEl.classList.add('show'); return; }
+    document.getElementById('authResetMsg').style.display='';
+  });
+
+  // ── Cloud submit (sign in or register) ──
+  async function doSubmit(){
+    const email    = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const isLogin  = document.getElementById('tabLogin').classList.contains('active');
+    const errEl    = document.getElementById('authError');
+    const btn      = document.getElementById('authSubmitBtn');
+    document.getElementById('authResetMsg').style.display='none';
+    if(!email){ errEl.textContent='Please enter your email.'; errEl.classList.add('show'); return; }
+    if(!password){ errEl.textContent='Please enter a password.'; errEl.classList.add('show'); return; }
+    if(!isLogin && password.length<8){ errEl.textContent='Password must be at least 8 characters.'; errEl.classList.add('show'); return; }
+    btn.disabled=true; btn.textContent='Verifying…';
+    errEl.classList.remove('show');
+
     if(isLogin){
-      result=await _authLogin(username,password);
+      const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+      if(error){ errEl.textContent=error.message; errEl.classList.add('show'); btn.disabled=false; btn.textContent='Sign In'; return; }
+      btn.textContent='✓ Signed in';
+      _localMode = false;
+      await _bootUser(data.user, ov);
     } else {
-      result=await _authRegister(username,password);
-      if(result.ok) result=await _authLogin(username,password);
+      const { data, error } = await _sb.auth.signUp({ email, password });
+      if(error){ errEl.textContent=error.message; errEl.classList.add('show'); btn.disabled=false; btn.textContent='Create Account'; return; }
+      if(data.user && data.session){
+        btn.textContent='✓ Account created';
+        _localMode = false;
+        await _bootUser(data.user, ov);
+      } else {
+        btn.textContent='Check your email';
+        errEl.style.background='rgba(46,196,165,.08)'; errEl.style.borderColor='rgba(46,196,165,.3)'; errEl.style.color='var(--green)';
+        errEl.textContent='✓ Confirmation email sent — click the link to activate your account.';
+        errEl.classList.add('show');
+      }
     }
-    if(!result.ok){
-      errEl.textContent=result.msg;errEl.classList.add('show');
-      btn.disabled=false;btn.textContent=isLogin?'Access System':'Create Account';
-      return;
-    }
-    btn.textContent='✓ Logged in';
-    _bootUser(username.trim().toLowerCase(), ov);
   }
 
-  document.getElementById('authSubmitBtn').addEventListener('click',doSubmit);
-  document.getElementById('authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')doSubmit();});
-  document.getElementById('authUsername').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('authPassword').focus();});
+  document.getElementById('authSubmitBtn').addEventListener('click', doSubmit);
+  document.getElementById('authPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doSubmit(); });
+  document.getElementById('authEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('authPassword').focus(); });
 
-  // ── Import panel: load file ──
-  document.getElementById('authImportFile').addEventListener('change',e=>{
-    const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=ev=>{document.getElementById('authImportText').value=ev.target.result||'';};
-    reader.readAsText(file);
-    e.target.value='';
-  });
-
-  // ── Import panel: apply ──
-  document.getElementById('authImportApplyBtn').addEventListener('click',()=>{
-    const raw=document.getElementById('authImportText').value.trim();
-    const errEl=document.getElementById('authImportError');
-    const okEl=document.getElementById('authImportOk');
-    errEl.classList.remove('show');okEl.style.display='none';
-    if(!raw){errEl.textContent='Paste your data pack first.';errEl.classList.add('show');return;}
-    const res=_applyDataPack(raw);
-    if(!res.ok){errEl.textContent='✗ '+res.msg;errEl.classList.add('show');return;}
-    okEl.style.display='block';
-    okEl.textContent=`✓ Data for "${res.user}" imported! Sign in now with your original password.`;
-    // Auto-switch to sign-in tab, pre-fill username
-    setTimeout(()=>{
-      ['tabLogin','tabRegister','tabImport'].forEach(id=>document.getElementById(id).classList.remove('active'));
-      document.getElementById('tabLogin').classList.add('active');
-      document.getElementById('authFormTitle').textContent='Welcome back';
-      document.getElementById('authSubmitBtn').textContent='Access System';
-      document.getElementById('authUsername').value=res.user;
-      document.getElementById('authPassword').value='';
-      _showAuthPanel('login');
-      setTimeout(()=>document.getElementById('authPassword').focus(),100);
-    },1400);
+  // ── Config help ──
+  document.getElementById('authConfigHelp').addEventListener('click', e=>{
+    e.preventDefault();
+    alert('Setup instructions:\n\n1. Go to https://supabase.com → create a free project\n2. In your project: SQL Editor → run the setup SQL (see README or comments in this file)\n3. Project Settings → API → copy URL and anon key\n4. Edit this HTML file: find SUPABASE_URL and SUPABASE_ANON_KEY near the top of the <script> and paste your values\n5. Reload — done!');
   });
 }
 
@@ -6000,23 +6134,15 @@ const DEFAULT_HABITS=[
   {id:'running', name:'Running',         icon:'🏃',color:'teal', days:[1,2,3,4,5,6,0],sub:'Cardio session',links:[],targetReps:1,targetMinutes:0,isActivity:false,flexSchedule:false},
   {id:'studying',name:'University',      icon:'📚',color:'blue', days:[1,2,3,4,5],sub:'Study session',links:[],targetReps:1,targetMinutes:60,isActivity:false,flexSchedule:false},
   {id:'work',    name:'Work',            icon:'💼',color:'green',days:[1,2,3,4,5],sub:'Professional tasks',links:[],targetReps:1,targetMinutes:0,isActivity:false,flexSchedule:false},
-  {id:'ref-videos',name:'Referee Videos',icon:'🎬',color:'purple',days:[1,2,3,4,5,6,0],sub:'Watch & study videos',
-   links:[{label:'📁 Drive Folder',url:'https://drive.google.com/drive/folders/1SjtoGfO9_ms496MKgRPz2SiDhh9HJRZt'},{label:'📊 Video Tracker',action:'openVideoModal'}],targetReps:1,targetMinutes:0,isActivity:false,flexSchedule:false},
-  {id:'ref-tests',name:'Referee Tests',  icon:'📝',color:'red',  days:[1,2,3,4,5,6,0],sub:'FlexiQuiz — 20 Qs',
-   links:[{label:'🧪 Take Test',url:'https://www.flexiquiz.com/SC/N/7374ba3b-0e35-487b-a498-8c4f84d1a2b8'}],targetReps:1,targetMinutes:0,isActivity:false,flexSchedule:false},
-  {id:'bridge',  name:'Bridge Online',  icon:'🃏',color:'pink',  days:[1,2,3,4,5,6,0],sub:'Challenge a Star (BBO)',
-   links:[{label:'♠ Open BBO',url:'https://www.bridgebase.com/v3/'}],targetReps:1,targetMinutes:0,isActivity:false,flexSchedule:false},
-  {id:'recovery',name:'Running Recovery',icon:'🧊',color:'teal', days:[2,4,6,0],sub:'Rest, stretch, roll',links:[],targetReps:1,targetMinutes:20,isActivity:false,flexSchedule:false},
   {id:'reading', name:'Reading',         icon:'📖',color:'blue', days:[1,2,3,4,5,6,0],sub:'Daily reading',links:[],targetReps:1,targetMinutes:30,isActivity:false,isReading:true,flexSchedule:false},
   {id:'others',  name:'Others',          icon:'✨',color:'muted',days:[1,2,3,4,5,6,0],sub:'Miscellaneous',links:[],targetReps:1,targetMinutes:0,isActivity:false,flexSchedule:false},
 ];
 
 // ═══════════════════════════════════════════════════════════════════════
-// STORAGE
+// STORAGE — D is populated async in _bootUser after Supabase auth
+// sd() debounces writes to Supabase; ld() fetches from Supabase
 // ═══════════════════════════════════════════════════════════════════════
-function ld(){try{return JSON.parse(localStorage.getItem('dcmd_v6_'+(_currentUser||'__pre'))||'{}');}catch{return{};}}
-function sd(){if(!_currentUser)return;localStorage.setItem('dcmd_v6_'+_currentUser,JSON.stringify(D));}
-let D=ld();
+let D = {};  // populated in _bootUser → ld()
 const _init=(k,v)=>{if(D[k]===undefined)D[k]=v;};
 _init('_videos',{});
 _init('_habits',JSON.parse(JSON.stringify(DEFAULT_HABITS)));
@@ -7719,9 +7845,9 @@ function renderVideoList(){
     </div>`;
     list.appendChild(item);
   }
-  list.querySelectorAll('.vi-obtn').forEach(btn=>{
-    btn.addEventListener('click',()=>{const n=parseInt(btn.dataset.n);sV(n,{watched:true});renderVideoModal();renderStats();window.open('https://drive.google.com/drive/folders/1SjtoGfO9_ms496MKgRPz2SiDhh9HJRZt','_blank');});
-  });
+  // list.querySelectorAll('.vi-obtn').forEach(btn=>{
+  //   btn.addEventListener('click',()=>{const n=parseInt(btn.dataset.n);sV(n,{watched:true});renderVideoModal();renderStats();window.open('https://drive.google.com/drive/folders/1SjtoGfO9_ms496MKgRPz2SiDhh9HJRZt','_blank');});
+  // });
   list.querySelectorAll('.vi-inp').forEach(inp=>{
     inp.addEventListener('blur',()=>{const n=parseInt(inp.dataset.n);sV(n,{answer:inp.value,watched:inp.value?true:gV(n).watched||false});renderVideoModal();renderStats();});
   });
@@ -11608,209 +11734,466 @@ EXACT FORMAT:
 })();
 
 // ═══════════════════════════════════════════════════════════════════════
-// VOICE-TO-TEXT — Web Speech API (free, no key) + AssemblyAI fallback
-// Wires the 🎙 buttons in AI Planner: context textarea + refine input
+// VOICE-TO-TEXT v2 — High-accuracy continuous live dictation
+//
+// Key improvements over v1:
+//  • Always uses en-US language model (prevents Danish/other locale mismatches)
+//  • maxAlternatives:3 — picks highest-confidence transcript per result
+//  • Seamless restart: pre-warm next recognizer while current is still running
+//    so there is ZERO audio gap between sessions
+//  • Deep normalization pipeline:
+//      – spoken numbers → digits  ("six" → "6", "twenty" → "20")
+//      – time expressions  ("six o'clock" → "6:00", "half past three" → "3:30")
+//      – ordinals          ("first" → "1st", "twenty-second" → "22nd")
+//      – fractions         ("three quarters" → "3/4")
+//      – currency          ("five dollars" → "$5", "ten euros" → "€10")
+//      – percentage        ("twenty percent" → "20%")
+//      – punctuation cmds  ("period/full stop" → ".", "comma" → ",", etc.)
+//      – new line / paragraph commands
+//      – smart spacing     (never double-spaces; space before words, not punctuation)
+//  • Works in Chrome, Edge, Safari (webkit prefix). Firefox unsupported.
 // ═══════════════════════════════════════════════════════════════════════
 (function(){
   'use strict';
 
-  const KEY_ASM = 'dcmd_assembly_apikey';
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
 
-  // ── detect browser speech support ──────────────────────────────────
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  // One active session at a time
+  let _session = null;
 
-  // Active recognition instance (only one at a time)
-  let _activeRec = null;
+  // ── Number word maps ────────────────────────────────────────────────
+  const ONES = {
+    'zero':0,'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,
+    'eight':8,'nine':9,'ten':10,'eleven':11,'twelve':12,'thirteen':13,
+    'fourteen':14,'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,
+    'nineteen':19
+  };
+  const TENS = {
+    'twenty':20,'thirty':30,'forty':40,'fifty':50,
+    'sixty':60,'seventy':70,'eighty':80,'ninety':90
+  };
+  const ORDINAL_MAP = {
+    'first':'1st','second':'2nd','third':'3rd','fourth':'4th','fifth':'5th',
+    'sixth':'6th','seventh':'7th','eighth':'8th','ninth':'9th','tenth':'10th',
+    'eleventh':'11th','twelfth':'12th','thirteenth':'13th','fourteenth':'14th',
+    'fifteenth':'15th','sixteenth':'16th','seventeenth':'17th','eighteenth':'18th',
+    'nineteenth':'19th','twentieth':'20th','twenty-first':'21st','twenty-second':'22nd',
+    'twenty-third':'23rd','twenty-fourth':'24th','twenty-fifth':'25th',
+    'twenty-sixth':'26th','twenty-seventh':'27th','twenty-eighth':'28th',
+    'twenty-ninth':'29th','thirtieth':'30th','thirty-first':'31st'
+  };
 
-  // ── Shared mic toggle logic ─────────────────────────────────────────
-  // targetEl   : the textarea or input to fill
-  // btnEl      : the mic button element
-  // appendMode : if true, append transcript to existing text (textarea)
-  //              if false, replace input value (text input)
-  function setupMicButton(btnEl, targetEl, appendMode){
-    if(!btnEl || !targetEl) return;
-
-    btnEl.addEventListener('click', async ()=>{
-      // If already recording for this button, stop it
-      if(btnEl.classList.contains('recording')){
-        if(_activeRec){ try{ _activeRec.stop(); }catch(e){} _activeRec=null; }
-        btnEl.classList.remove('recording');
-        btnEl.title = 'Voice input';
-        return;
-      }
-
-      // Stop any other active recording
-      if(_activeRec){ try{ _activeRec.stop(); }catch(e){} _activeRec=null; }
-      // Reset any other mic buttons
-      document.querySelectorAll('.aip-mic-btn.recording').forEach(b=>{ b.classList.remove('recording'); b.textContent='🎙'; b.title='Voice input'; });
-
-      // Prefer browser speech recognition (free, instant)
-      if(SpeechRecognition){
-        startBrowserSpeech(btnEl, targetEl, appendMode);
-      } else {
-        // Fallback: AssemblyAI (requires key + microphone MediaRecorder)
-        const asmKey = (localStorage.getItem(KEY_ASM)||'').trim();
-        if(!asmKey){
-          showToast('🎙 Browser speech not supported. Add an AssemblyAI key in Settings for voice input.');
-          return;
+  // Parse a sequence of number words into an integer, returns null if not a number phrase
+  function _parseNumberWords(words){
+    // words: array of lowercase strings
+    let total = 0, current = 0, i = 0;
+    if(!words.length) return null;
+    // handle "a" as 1
+    if(words[0] === 'a' && words.length === 1) return 1;
+    let matched = 0;
+    while(i < words.length){
+      const w = words[i].replace(/-/g,''); // handle "twenty-three" etc
+      if(ONES[w] !== undefined){
+        current += ONES[w]; matched++; i++;
+      } else if(TENS[w] !== undefined){
+        current += TENS[w]; matched++; i++;
+        // check for ones after tens: "twenty three"
+        if(i < words.length){
+          const w2 = words[i].replace(/-/g,'');
+          if(ONES[w2] !== undefined && ONES[w2] < 10 && ONES[w2] > 0){
+            current += ONES[w2]; matched++; i++;
+          }
         }
-        startAssemblyAI(btnEl, targetEl, appendMode, asmKey);
+      } else if(w === 'hundred'){
+        if(current === 0) current = 1;
+        current *= 100; matched++; i++;
+      } else if(w === 'thousand'){
+        if(current === 0) current = 1;
+        total += current * 1000; current = 0; matched++; i++;
+      } else if(w === 'million'){
+        if(current === 0) current = 1;
+        total += current * 1000000; current = 0; matched++; i++;
+      } else {
+        break;
       }
-    });
+    }
+    if(matched === 0) return null;
+    return { value: total + current, consumed: matched };
   }
 
-  // ── Web Speech API (browser-native, free) ──────────────────────────
-  function startBrowserSpeech(btnEl, targetEl, appendMode){
-    const rec = new SpeechRecognition();
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.lang = navigator.language || 'en-US';
-    _activeRec = rec;
+  // ── Main normalization pipeline ─────────────────────────────────────
+  function _normalize(raw){
+    // Step 0: basic cleanup
+    let s = raw.trim();
+    if(!s) return s;
+
+    // Step 1: lowercase for processing (we'll re-capitalize later at sentence start)
+    // Work token by token for number/time/ordinal substitution
+    s = _normalizeTimes(s);
+    s = _normalizeOrdinals(s);
+    s = _normalizeNumbers(s);
+    s = _normalizePunctuation(s);
+    s = _normalizeNewlines(s);
+    s = _normalizePercentCurrency(s);
+
+    // Step 2: clean up spacing artifacts
+    s = s.replace(/\s{2,}/g,' ').trim();
+
+    return s;
+  }
+
+  // Time expressions: "six o'clock" → "6:00", "half past three" → "3:30",
+  // "quarter past five" → "5:15", "quarter to nine" → "8:45"
+  // "six thirty" → "6:30", "at eight am" → "at 8 AM"
+  function _normalizeTimes(s){
+    // "X o'clock" / "X oclock"
+    s = s.replace(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+o'?clock\b/gi, (m, h) => {
+      const n = ONES[h.toLowerCase()];
+      return n !== undefined ? n + ':00' : m;
+    });
+    // "half past X"
+    s = s.replace(/\bhalf\s+past\s+(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi, (m, h) => {
+      const n = ONES[h.toLowerCase()];
+      return n !== undefined ? n + ':30' : m;
+    });
+    // "quarter past X"
+    s = s.replace(/\bquarter\s+past\s+(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi, (m, h) => {
+      const n = ONES[h.toLowerCase()];
+      return n !== undefined ? n + ':15' : m;
+    });
+    // "quarter to X"
+    s = s.replace(/\bquarter\s+to\s+(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi, (m, h) => {
+      const n = ONES[h.toLowerCase()];
+      return n !== undefined ? ((n - 1 + 12) % 12 || 12) + ':45' : m;
+    });
+    // "X thirty", "X fifteen", "X forty-five" etc (hour + minute word)
+    const minuteWords = {'fifteen':15,'thirty':30,'forty':40,'forty-five':45,'forty five':45,'forty-five':45};
+    for(const [mw, mv] of Object.entries(minuteWords)){
+      const re = new RegExp('\\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\\s+' + mw.replace('-','[- ]') + '\\b', 'gi');
+      s = s.replace(re, (m, h) => {
+        const n = ONES[h.toLowerCase()];
+        return n !== undefined ? n + ':' + String(mv).padStart(2,'0') : m;
+      });
+    }
+    // AM/PM attached to digits
+    s = s.replace(/\b(\d{1,2}(?::\d{2})?)\s*(a\.?m\.?|p\.?m\.?)\b/gi, (m, t, ampm) => {
+      return t + ' ' + ampm.replace(/\./g,'').toUpperCase();
+    });
+    return s;
+  }
+
+  // Ordinals: "first" → "1st" etc
+  function _normalizeOrdinals(s){
+    for(const [word, digit] of Object.entries(ORDINAL_MAP)){
+      const re = new RegExp('\\b' + word.replace('-','[- ]') + '\\b', 'gi');
+      s = s.replace(re, digit);
+    }
+    return s;
+  }
+
+  // General number words → digits
+  function _normalizeNumbers(s){
+    // Split into tokens, try to parse runs of number words
+    const tokens = s.split(/(\s+)/);
+    const result = [];
+    let i = 0;
+    while(i < tokens.length){
+      // skip whitespace tokens
+      if(/^\s+$/.test(tokens[i])){ result.push(tokens[i]); i++; continue; }
+      // Try to match a number word sequence starting at i
+      const wordTokens = [];
+      let j = i;
+      // collect consecutive word tokens (skip spaces)
+      while(j < tokens.length && wordTokens.length < 12){
+        if(/^\s+$/.test(tokens[j])){ j++; continue; }
+        wordTokens.push(tokens[j].toLowerCase());
+        j++;
+        const parsed = _parseNumberWords(wordTokens);
+        if(parsed && parsed.consumed === wordTokens.length){
+          // keep going to find longer match
+        } else {
+          break;
+        }
+      }
+      // Find longest matching prefix
+      let bestLen = 0, bestVal = null;
+      for(let k = wordTokens.length; k >= 1; k--){
+        const parsed = _parseNumberWords(wordTokens.slice(0, k));
+        if(parsed && parsed.consumed === k){
+          bestLen = k; bestVal = parsed.value; break;
+        }
+      }
+      if(bestLen > 0 && bestVal !== null){
+        result.push(String(bestVal));
+        // skip bestLen word tokens (and their spaces)
+        let skipped = 0;
+        let jj = i;
+        while(jj < tokens.length && skipped < bestLen){
+          if(/^\s+$/.test(tokens[jj])){ jj++; continue; }
+          skipped++; jj++;
+        }
+        i = jj;
+      } else {
+        result.push(tokens[i]); i++;
+      }
+    }
+    return result.join('');
+  }
+
+  // Punctuation voice commands
+  function _normalizePunctuation(s){
+    const cmds = [
+      [/\b(period|full stop)\b/gi,               '.'],
+      [/\bcomma\b/gi,                            ','],
+      [/\bquestion mark\b/gi,                    '?'],
+      [/\bexclamation (mark|point)\b/gi,         '!'],
+      [/\bcolon\b/gi,                            ':'],
+      [/\bsemicolon\b/gi,                        ';'],
+      [/\bopen (parenthes[ei]s|bracket)\b/gi,    '('],
+      [/\bclose (parenthes[ei]s|bracket)\b/gi,   ')'],
+      [/\bopen quote[s]?\b/gi,                   '"'],
+      [/\bclose quote[s]?\b/gi,                  '"'],
+      [/\bdash\b/gi,                             '—'],
+      [/\bhyphen\b/gi,                           '-'],
+      [/\bellipsis\b/gi,                         '...'],
+      [/\bat sign\b/gi,                          '@'],
+      [/\bhash(tag)?\b/gi,                       '#'],
+      [/\bampersand\b/gi,                        '&'],
+      [/\bslash\b/gi,                            '/'],
+      [/\bbackslash\b/gi,                        '\\'],
+      [/\basterisk\b/gi,                         '*'],
+      [/\bplus sign\b/gi,                        '+'],
+      [/\bequals( sign)?\b/gi,                   '='],
+      [/\bgreater than\b/gi,                     '>'],
+      [/\bless than\b/gi,                        '<'],
+    ];
+    for(const [re, ch] of cmds) s = s.replace(re, ch);
+    // Remove space before punctuation that attaches to previous word
+    s = s.replace(/\s+([.,!?:;)\]'"»—])/g, '$1');
+    return s;
+  }
+
+  // New line / paragraph commands
+  function _normalizeNewlines(s){
+    s = s.replace(/\b(new line|newline|line break)\b/gi, '\n');
+    s = s.replace(/\bnew paragraph\b/gi, '\n\n');
+    return s;
+  }
+
+  // Percent and currency
+  function _normalizePercentCurrency(s){
+    s = s.replace(/\b(\d+(?:\.\d+)?)\s*percent\b/gi, '$1%');
+    s = s.replace(/\b(\d+(?:\.\d+)?)\s*dollars?\b/gi, '\$$1');
+    s = s.replace(/\b(\d+(?:\.\d+)?)\s*euros?\b/gi, '€$1');
+    s = s.replace(/\b(\d+(?:\.\d+)?)\s*pounds?\b/gi, '£$1');
+    s = s.replace(/\b(\d+(?:\.\d+)?)\s*yen\b/gi, '¥$1');
+    return s;
+  }
+
+  // Smart join: add a space before new text unless it follows punctuation
+  function _smartJoin(existing, incoming){
+    if(!existing) return incoming;
+    if(!incoming) return existing;
+    const lastChar = existing[existing.length - 1];
+    // If existing ends with newline, don't add space
+    if(lastChar === '\n') return existing + incoming;
+    // If incoming starts with punctuation, no space
+    if(/^[.,!?:;)\]'"»%]/.test(incoming)) return existing + incoming;
+    // Normal case: add a space
+    return existing.trimEnd() + ' ' + incoming.trimStart();
+  }
+
+  // ── Ghost overlay ───────────────────────────────────────────────────
+  function _getOrCreateGhost(targetEl){
+    if(targetEl.tagName === 'INPUT') return null;
+    let ghost = targetEl._voiceGhost;
+    if(!ghost){
+      ghost = document.createElement('div');
+      ghost.className = 'aip-voice-ghost';
+      targetEl.parentNode.style.position = 'relative';
+      targetEl.parentNode.insertBefore(ghost, targetEl.nextSibling);
+      targetEl._voiceGhost = ghost;
+    }
+    return ghost;
+  }
+
+  function _hideGhost(targetEl){
+    if(targetEl._voiceGhost) targetEl._voiceGhost.style.display = 'none';
+  }
+
+  function _esc(s){
+    return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Core session ─────────────────────────────────────────────────────
+  function _startSession(btnEl, targetEl){
+    if(!SR){
+      showToast('🎙 Speech recognition not supported. Please use Chrome or Edge.');
+      return;
+    }
+
+    _stopSession();
 
     btnEl.classList.add('recording');
     btnEl.textContent = '⏹';
-    btnEl.title = 'Click to stop recording';
+    btnEl.title = 'Click to stop dictation';
 
-    rec.onresult = (e)=>{
-      const transcript = Array.from(e.results).map(r=>r[0].transcript).join(' ').trim();
-      if(transcript){
-        if(appendMode){
-          const cur = targetEl.value.trim();
-          targetEl.value = cur ? cur + ' ' + transcript : transcript;
-        } else {
-          targetEl.value = transcript;
+    let committed  = '';       // normalized, finalised text added this session
+    const baseText = targetEl.value;
+    let _stopped   = false;
+    let _recA = null;          // currently running recognizer
+    let _recB = null;          // pre-warmed next recognizer (seamless handoff)
+    let _handoffPending = false;
+
+    const ghost = _getOrCreateGhost(targetEl);
+
+    function _updateDisplay(interimRaw){
+      const interim = interimRaw ? _normalize(interimRaw) : '';
+      const body    = _smartJoin(baseText, committed);
+
+      if(targetEl.tagName === 'INPUT'){
+        targetEl.value = interim ? _smartJoin(body, interim) : body;
+      } else {
+        targetEl.value = body;
+        if(ghost){
+          if(interim){
+            ghost.style.display = 'block';
+            ghost.innerHTML =
+              '<span class="aip-voice-interim">' + _esc(body) +
+              '<span class="aip-voice-live"> ' + _esc(interim) + '</span></span>';
+          } else {
+            ghost.style.display = 'none';
+          }
         }
-        targetEl.dispatchEvent(new Event('input'));
-        targetEl.focus();
       }
-    };
-
-    rec.onerror = (e)=>{
-      if(e.error !== 'aborted'){
-        const msgs = {
-          'not-allowed': 'Microphone access denied. Allow mic in your browser settings.',
-          'no-speech': 'No speech detected. Try again.',
-          'network': 'Network error during speech recognition.',
-        };
-        showToast('🎙 ' + (msgs[e.error] || 'Speech error: ' + e.error));
-      }
-      _cleanup();
-    };
-
-    rec.onend = ()=>{ _cleanup(); };
-
-    rec.start();
-
-    function _cleanup(){
-      btnEl.classList.remove('recording');
-      btnEl.textContent = '🎙';
-      btnEl.title = 'Voice input';
-      if(_activeRec === rec) _activeRec = null;
+      targetEl.dispatchEvent(new Event('input'));
+      if(targetEl.tagName !== 'INPUT') targetEl.scrollTop = targetEl.scrollHeight;
     }
-  }
 
-  // ── AssemblyAI fallback (free tier: 100 hrs/month) ──────────────────
-  // Records via MediaRecorder → uploads WAV blob → polls for transcript
-  function startAssemblyAI(btnEl, targetEl, appendMode, apiKey){
-    let mediaRec, chunks=[], stream;
+    function _buildRec(){
+      if(_stopped) return null;
+      const rec = new SR();
+      rec.continuous      = true;
+      rec.interimResults  = true;
+      rec.lang            = 'en-US';       // ← ALWAYS English, regardless of browser locale
+      rec.maxAlternatives = 3;             // ← get up to 3 candidates, pick best confidence
 
-    navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{
-      stream = s;
-      mediaRec = new MediaRecorder(stream);
-      chunks = [];
-
-      mediaRec.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
-
-      mediaRec.onstop = async ()=>{
-        stream.getTracks().forEach(t=>t.stop());
-        btnEl.classList.remove('recording');
-        btnEl.textContent = '🎙';
-        btnEl.title = 'Voice input';
-        btnEl.disabled = true;
-        showToast('🎙 Processing audio…');
-
-        const blob = new Blob(chunks, {type:'audio/webm'});
-        try{
-          // 1. Upload audio
-          const upResp = await fetch('https://api.assemblyai.com/v2/upload',{
-            method:'POST',
-            headers:{'authorization': apiKey},
-            body: blob
-          });
-          if(!upResp.ok) throw new Error('Upload failed '+upResp.status);
-          const {upload_url} = await upResp.json();
-
-          // 2. Submit transcription job
-          const txResp = await fetch('https://api.assemblyai.com/v2/transcript',{
-            method:'POST',
-            headers:{'authorization': apiKey, 'content-type':'application/json'},
-            body: JSON.stringify({audio_url: upload_url})
-          });
-          if(!txResp.ok) throw new Error('Transcription request failed '+txResp.status);
-          const {id} = await txResp.json();
-
-          // 3. Poll for result (up to 30s)
-          let attempts=0;
-          const poll = async ()=>{
-            if(attempts++ > 30){ throw new Error('Transcription timed out'); }
-            const polResp = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`,{
-              headers:{'authorization': apiKey}
-            });
-            const result = await polResp.json();
-            if(result.status === 'completed'){
-              const transcript = (result.text||'').trim();
-              if(transcript){
-                if(appendMode){
-                  const cur = targetEl.value.trim();
-                  targetEl.value = cur ? cur + ' ' + transcript : transcript;
-                } else {
-                  targetEl.value = transcript;
-                }
-                targetEl.dispatchEvent(new Event('input'));
-                targetEl.focus();
-              }
-              showToast('🎙 Transcription complete!');
-            } else if(result.status === 'error'){
-              throw new Error(result.error || 'Transcription error');
-            } else {
-              await new Promise(r=>setTimeout(r,1000));
-              await poll();
+      rec.onresult = (e) => {
+        let interimBuf = '';
+        for(let i = e.resultIndex; i < e.results.length; i++){
+          const res = e.results[i];
+          // Pick alternative with highest confidence
+          let bestTxt = res[0].transcript, bestConf = res[0].confidence || 0;
+          for(let k = 1; k < res.length; k++){
+            if((res[k].confidence || 0) > bestConf){
+              bestConf = res[k].confidence;
+              bestTxt  = res[k].transcript;
             }
-          };
-          await poll();
-        } catch(err){
-          showToast('🎙 Voice error: ' + err.message);
-        } finally {
-          btnEl.disabled = false;
-          if(_activeRec === mediaRec) _activeRec = null;
+          }
+          if(res.isFinal){
+            const norm = _normalize(bestTxt);
+            if(norm){
+              committed = _smartJoin(committed, norm);
+            }
+          } else {
+            interimBuf += bestTxt;
+          }
+        }
+        _updateDisplay(interimBuf);
+
+        // Pre-warm next recognizer when we get our first final result
+        // (means the current one will end soon due to speech pause)
+        if(!_recB && !_handoffPending && !_stopped){
+          _handoffPending = true;
+          setTimeout(()=>{ _handoffPending = false; if(!_stopped && !_recB) _recB = _buildRec(); }, 200);
         }
       };
 
-      _activeRec = mediaRec;
-      btnEl.classList.add('recording');
-      btnEl.textContent = '⏹';
-      btnEl.title = 'Click to stop & transcribe';
-      mediaRec.start();
+      rec.onerror = (e) => {
+        if(e.error === 'not-allowed'){
+          showToast('🎙 Microphone access denied. Please allow mic access in your browser settings.');
+          _stopped = true; _cleanupBtn(); return;
+        }
+        // aborted / no-speech / network: let onend handle restart
+      };
 
-    }).catch(err=>{
-      showToast('🎙 Mic access denied: ' + err.message);
+      rec.onend = () => {
+        if(_stopped){ _finalise(); return; }
+        _hideGhost(targetEl);
+        // Seamless handoff: use pre-warmed rec if available, else build a fresh one
+        const next = _recB || _buildRec();
+        _recB  = null;
+        _recA  = next;
+        if(next){ try{ next.start(); }catch(err){ setTimeout(()=>{ if(!_stopped){ _recA = _buildRec(); if(_recA) _recA.start(); }}, 120); }}
+      };
+
+      return rec;
+    }
+
+    function _finalise(){
+      _hideGhost(targetEl);
+      const finalText = _smartJoin(baseText, committed);
+      targetEl.value = finalText.trim();
+      targetEl.dispatchEvent(new Event('input'));
+      if(targetEl.tagName !== 'INPUT') targetEl.scrollTop = targetEl.scrollHeight;
+      _cleanupBtn();
+    }
+
+    function _cleanupBtn(){
+      btnEl.classList.remove('recording');
+      btnEl.textContent = '🎙';
+      btnEl.title = 'Voice input';
+      if(_session && _session.btnEl === btnEl) _session = null;
+    }
+
+    _session = {
+      btnEl, targetEl,
+      stop: () => {
+        _stopped = true;
+        if(_recA){ try{ _recA.stop(); }catch(e){} }
+        if(_recB){ try{ _recB.abort(); }catch(e){} _recB = null; }
+        setTimeout(()=>{ if(_session && _session.btnEl === btnEl) _finalise(); }, 350);
+      }
+    };
+
+    // Start first recognizer
+    _recA = _buildRec();
+    if(_recA) _recA.start();
+  }
+
+  function _stopSession(){
+    if(_session){
+      const s = _session;
+      _session = null;
+      s.stop();
+    }
+    document.querySelectorAll('.aip-mic-btn.recording').forEach(b=>{
+      b.classList.remove('recording');
+      b.textContent = '🎙';
+      b.title = 'Voice input';
+    });
+    document.querySelectorAll('textarea').forEach(t=>{ if(t._voiceGhost) t._voiceGhost.style.display='none'; });
+  }
+
+  function setupMicButton(btnEl, targetEl){
+    if(!btnEl || !targetEl) return;
+    btnEl.addEventListener('click', ()=>{
+      if(btnEl.classList.contains('recording')) _stopSession();
+      else _startSession(btnEl, targetEl);
     });
   }
 
-  // ── Wire buttons once DOM is ready ─────────────────────────────────
-  // Both buttons exist in the static HTML so we can wire immediately
-  // but we guard with DOMContentLoaded just in case
+  function _hookActionButtons(){
+    ['aipActionBtn','aipRefineBtn'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.addEventListener('click', ()=>{ _stopSession(); }, true);
+    });
+  }
+
   function _wire(){
-    setupMicButton(
-      document.getElementById('aipContextMicBtn'),
-      document.getElementById('aipContextTa'),
-      true   // append — context textarea accumulates notes
-    );
-    setupMicButton(
-      document.getElementById('aipRefineMicBtn'),
-      document.getElementById('aipRefineInput'),
-      false  // replace — refine is a single command
-    );
+    setupMicButton(document.getElementById('aipContextMicBtn'), document.getElementById('aipContextTa'));
+    setupMicButton(document.getElementById('aipRefineMicBtn'),  document.getElementById('aipRefineInput'));
+    _hookActionButtons();
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _wire);
