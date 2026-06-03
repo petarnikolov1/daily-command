@@ -1607,6 +1607,19 @@ body > *{position:relative;z-index:1;}
   background:var(--s2);border-radius:4px;padding:2px 6px;margin-top:1px;display:inline-block;
 }
 
+/* ── WEEK PILL SLIDING WINDOW — desktop passthrough ── */
+.hwp-window{overflow:hidden;flex:1;position:relative;}
+.hwp-track{display:flex;gap:5px;flex:1;}
+.hwp-nav{display:none;} /* Hidden on desktop */
+@media(min-width:641px){
+  .hwp-window{overflow:visible;flex:1;}
+  .hwp-track{display:flex;gap:2px;flex:1;}
+  /* Hide pills 8 and 9 on desktop — only show 7 */
+  .hwp-track .hweek-pill:nth-child(n+8){display:none;}
+  .hwp-nav{display:none!important;}
+  .hweek-row{display:flex;align-items:center;gap:2px;margin-top:10px;padding:2px 0;}
+}
+
 /* ── PER-DAY TIME BADGE ON PILLS ── */
 /* Per-day time icon — subtle at rest, clear on hover, always tappable */
 .hwp-clock-btn{
@@ -3472,288 +3485,316 @@ body > *{position:relative;z-index:1;}
   .habits-grid{grid-template-columns:1fr;}
 
   /* ═══════════════════════════════════════════════════════════════
-     MOBILE HABIT CARD — INSTRUMENT PANEL REDESIGN
-     Layout: left content column + right check button
+     MOBILE HABIT CARD — v26 layout restored + larger tap targets
   ═══════════════════════════════════════════════════════════════ */
 
-  /* Card shell — tighter padding, full width */
+  /* Card shell */
   .hcard{
-    padding:0;
-    border-radius:16px;
-    overflow:hidden;
+    padding:16px;
   }
 
-  /* Inner layout: left column + right check zone */
+  /* Header — unchanged from desktop, just slightly more padding */
   .hcard-header{
-    display:grid;
-    grid-template-columns:1fr 64px;
-    grid-template-rows:auto;
-    margin:0;
-    gap:0;
-    align-items:stretch;
-    min-height:72px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    margin-bottom:10px;
+    gap:6px;
   }
 
-  /* Left zone: icon + name + sub + action links */
-  .hcard-header .htop{
-    display:contents; /* dissolve — children flow into grid */
-  }
-
-  /* Icon goes to the left column header area */
   .hcard-header .hicon{
-    grid-column:1;
-    grid-row:1;
-    font-size:1.2rem;
-    padding:16px 0 0 16px;
+    font-size:1.5rem;
     line-height:1;
-    align-self:start;
-    margin-top:0;
+    flex-shrink:0;
+    margin-top:1px;
   }
 
-  /* The action buttons (MIT star, edit gear, flex toggle) — sit right of icon, same row */
+  /* htop row — same as desktop but buttons slightly larger for touch */
   .htop{
     display:flex;
+    align-items:center;
+    gap:5px;
+    flex-shrink:0;
+    margin-left:auto;
     flex-direction:row;
-    align-items:flex-start;
-    gap:6px;
-    padding:14px 8px 0 10px;
-    flex-wrap:nowrap;
-    margin-left:0;
-    justify-content:flex-start;
+    padding:0;
   }
 
-  /* Restore icon inside htop (it's the first child of htop) */
-  .htop .hicon{
-    font-size:1.25rem;
-    margin-top:1px;
+  /* Action buttons: slightly bigger tap targets on mobile */
+  .hlink.sm{
+    min-width:34px;
+    height:34px;
+    padding:0 10px;
+    font-size:.82rem;
+    border-radius:var(--r-sm);
+    border:0.5px solid var(--border);
+    background:rgba(31,122,140,0.06);
+    color:var(--muted);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:all 0.3s cubic-bezier(0.16,1,0.3,1);
+    font-family:'JetBrains Mono',monospace;
+    font-weight:400;
+    user-select:none;
     flex-shrink:0;
   }
 
-  /* Action micro-buttons — slightly larger tap targets */
-  .hlink.sm{
-    padding:5px 9px;
-    font-size:.62rem;
-    border-radius:7px;
-    line-height:1.2;
-  }
-
-  /* Check button — full-height right column, large circular target */
+  /* hcheck — same size as desktop (small square) */
   .hcheck{
-    grid-column:2;
-    grid-row:1 / span 2;
-    width:auto;
-    height:auto;
-    align-self:stretch;
-    justify-self:stretch;
-    border-radius:0 16px 16px 0;
-    border:none;
-    border-left:0.5px solid var(--border);
-    background:rgba(31,122,140,0.04);
+    width:26px;
+    height:26px;
+    border-radius:7px;
+    border:1.5px solid var(--acc,var(--border-mid));
     display:flex;
     align-items:center;
     justify-content:center;
-    min-width:64px;
-    min-height:72px;
-    transition:background 0.2s, border-color 0.2s;
+    flex-shrink:0;
     position:relative;
     overflow:hidden;
   }
-  .hcheck::after{
-    content:'';
-    position:absolute;
-    inset:0;
-    background:radial-gradient(circle at 50% 50%, var(--acc-dim,rgba(31,122,140,0.15)), transparent 70%);
-    opacity:0;
-    transition:opacity 0.2s;
-  }
-  .hcard:not(.done) .hcheck:active::after{ opacity:1; }
-
   .hcheck svg{
-    width:18px;
-    height:18px;
+    width:11px;
+    height:9px;
     opacity:0;
-    transition:opacity 0.2s;
+    transition:opacity 0.22s;
   }
   .hcard.done .hcheck svg{ opacity:1; }
   .hcard.done .hcheck{
-    background:var(--acc, var(--teal));
-    border-left-color:transparent;
-    border-radius:0 16px 16px 0;
     box-shadow:none;
     animation:none;
   }
-  /* Undone state — show a faint ring as affordance */
-  .hcard:not(.done) .hcheck::before{
-    content:'';
-    width:28px;height:28px;border-radius:50%;
-    border:2px solid var(--acc,var(--teal));
-    opacity:0.35;
-    position:absolute;
-    transition:opacity 0.2s, transform 0.2s;
-  }
-  .hcard:not(.done):active .hcheck::before{
-    opacity:0.7;
-    transform:scale(0.88);
-  }
 
-  /* MIT crown — reposition so it doesn't cover the new layout */
-  .mit-crown{
-    top:auto;left:auto;
-    position:static;
-    font-size:1rem;
-    line-height:1;
-    display:inline;
-  }
+  /* ── STEVE JOBS TYPOGRAPHY — size + weight do all the work ── */
 
-  /* ── Content body below the header ── */
-  /* Name — leads the card */
+  /* Name — commanding, large, unambiguous */
   .hname{
-    font-size:1rem;
+    font-size:1.15rem;
     font-weight:800;
-    letter-spacing:-.02em;
-    line-height:1.25;
+    letter-spacing:-.025em;
+    line-height:1.2;
     margin:0;
-    padding:6px 80px 0 16px; /* right padding keeps text away from check column */
+    padding:8px 14px 0 18px;
   }
 
-  /* Sub — monospace label under name */
+  /* Sub — quieter supporting line */
   .hsub{
-    font-size:.68rem;
-    padding:3px 80px 0 16px;
+    font-size:.72rem;
+    font-weight:400;
+    padding:4px 14px 0 18px;
     margin:0;
     line-height:1.4;
+    letter-spacing:.01em;
   }
 
-  /* Time badge — prominent, below name */
+  /* ── TIME BADGE — prominent, tappable, clear ── */
   .time-block-pill{
     display:inline-flex;
-    margin:8px 0 0 16px;
-    padding:5px 11px;
-    font-size:.65rem;
-    border-radius:8px;
-    gap:5px;
+    align-items:center;
+    gap:6px;
+    margin:10px 0 0 18px;
+    padding:7px 14px;
+    font-size:.72rem;
+    font-weight:600;
+    border-radius:10px;
+    gap:6px;
     border-width:1px;
+    letter-spacing:.02em;
   }
 
-  /* ── Week pills strip — proper 7-day segment display ── */
+  /* ── 3-PILL SLIDING DAY WINDOW ── */
+  /* Outer container: clip + swipe track */
   .hweek-row{
-    display:grid;
-    grid-template-columns:repeat(7,1fr);
-    gap:3px;
-    margin:10px 12px 0;
+    display:flex;
+    align-items:center;
+    gap:0;
+    margin:12px 14px 0;
     padding:0;
+    position:relative;
   }
 
+  /* The sliding track of 9 pills */
+  .hwp-track{
+    display:flex;
+    gap:5px;
+    transition:transform 0.32s cubic-bezier(0.23,1,0.32,1);
+    flex:1;
+    overflow:visible;
+  }
+
+  /* Navigation arrows for day pills */
+  .hwp-nav{
+    width:28px;
+    height:28px;
+    border-radius:50%;
+    border:0.5px solid var(--border);
+    background:rgba(31,122,140,0.08);
+    color:var(--teal2);
+    font-size:.75rem;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    transition:background 0.18s, transform 0.15s;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .hwp-nav:active{ transform:scale(0.88); background:rgba(31,122,140,0.18); }
+  .hwp-nav.hwp-prev{ margin-right:5px; }
+  .hwp-nav.hwp-next{ margin-left:5px; }
+  /* visibility:hidden keeps the arrow's space reserved so window width never changes */
+  .hwp-nav.hwp-hidden{ visibility:hidden; pointer-events:none; }
+
+  /* Pills window: show exactly 3 */
+  .hwp-window{
+    flex:1;
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* Each pill — much bigger on mobile */
   .hweek-pill{
     display:flex;
     flex-direction:column;
     align-items:center;
     gap:0;
-    padding:6px 2px 5px;
-    border-radius:8px;
-    min-height:44px;
+    padding:9px 4px 8px;
+    border-radius:12px;
+    min-height:70px;
     justify-content:center;
     border-width:1px;
+    flex:1;
+    min-width:0;
+    cursor:pointer;
+    transition:all 0.22s cubic-bezier(0.16,1,0.3,1);
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
   }
 
+  /* Day abbreviation — clear label */
   .hwp-day{
-    font-size:.5rem;
-    letter-spacing:.04em;
-    opacity:.5;
-    margin-bottom:2px;
+    font-size:.6rem;
+    font-weight:700;
+    letter-spacing:.07em;
+    text-transform:uppercase;
+    opacity:.55;
+    margin-bottom:3px;
+    line-height:1;
   }
 
+  /* Date number — the hero */
   .hwp-num{
-    font-size:.82rem;
+    font-size:1.3rem;
     font-weight:800;
     line-height:1;
+    letter-spacing:-.02em;
   }
 
-  /* Clock icon on pill — show only if custom, as a tiny dot instead of emoji */
+  /* Clock time button inside pill — always visible on mobile, large enough to tap */
   .hwp-clock-btn{
-    font-size:.5rem;
-    opacity:0;
-    margin-top:2px;
-    padding:0;
+    font-size:.62rem;
+    font-weight:600;
+    opacity:.55;
+    margin-top:5px;
+    padding:3px 8px;
     line-height:1;
-    width:5px;height:5px;
-    border-radius:50%;
-    background:transparent;
-    transition:none;
+    border-radius:6px;
+    background:rgba(31,122,140,0.08);
+    color:var(--teal2);
+    transition:opacity 0.18s, background 0.18s;
+    min-height:20px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    white-space:nowrap;
+    pointer-events:auto;
+    -webkit-tap-highlight-color:transparent;
   }
   .hwp-clock-btn.has-custom{
     opacity:1;
-    background:var(--amber);
-    border-radius:50%;
-    width:5px;height:5px;
-    font-size:0;         /* hide ⏱ emoji, show only the amber dot */
-    padding:0;
-    box-shadow:0 0 4px var(--amber);
+    background:rgba(232,163,56,0.18);
+    color:var(--amber);
+    font-size:.62rem;
+    padding:3px 8px;
+    width:auto;
+    height:auto;
+    border-radius:6px;
+    box-shadow:none;
   }
+  .hweek-pill:active .hwp-clock-btn{ opacity:1; }
 
   /* Week override badge */
   .hweek-ovr-row{
-    margin:4px 12px 0;
+    margin:6px 14px 0;
   }
   .hweek-ovr-badge{
-    font-size:.55rem;
-    padding:4px 10px;
+    font-size:.6rem;
+    font-weight:600;
+    padding:5px 12px;
   }
 
-  /* ── Streak line ── */
+  /* ── STREAK — bigger, bolder ── */
   .hstreak{
     display:flex;
     align-items:center;
     gap:6px;
-    margin:10px 0 0 16px;
-    font-size:.68rem;
+    margin:10px 0 0 18px;
+    font-size:.72rem;
+    font-weight:500;
+    letter-spacing:.01em;
   }
   .hstreak .sn{
-    font-size:.88rem;
+    font-size:1.05rem;
     font-weight:800;
+    letter-spacing:-.02em;
   }
 
-  /* ── Note input — full bleed, no side margins ── */
+  /* ── NOTE INPUT ── */
   .hcard-note-inp{
     display:block;
-    margin:10px 12px 0;
-    width:calc(100% - 24px);
-    padding:9px 12px;
+    margin:10px 14px 0;
+    width:calc(100% - 28px);
+    padding:10px 13px;
     font-size:.78rem;
-    border-radius:10px;
+    font-weight:500;
+    border-radius:12px;
     box-sizing:border-box;
     background:rgba(31,122,140,0.05);
+    letter-spacing:.01em;
   }
   .hcard.done .hcard-note-inp{
     background:rgba(255,255,255,0.06);
   }
 
-  /* ── Reps row — bigger dots, more breathing room ── */
+  /* ── REPS — bigger dots ── */
   .reps-row{
     display:flex;
     align-items:center;
-    gap:8px;
-    margin:12px 0 0 16px;
+    gap:9px;
+    margin:12px 0 0 18px;
     flex-wrap:wrap;
   }
   .rep-dot{
-    width:20px;
-    height:20px;
+    width:22px;
+    height:22px;
     border-radius:50%;
     border-width:1.5px;
   }
   .reps-label{
-    font-size:.68rem;
+    font-size:.72rem;
+    font-weight:600;
     margin-left:2px;
   }
 
-  /* ── Timer — contained block with clear sections ── */
+  /* ── TIMER — clean contained block ── */
   .timer-row{
-    margin:12px 12px 0;
+    margin:12px 14px 0;
     background:rgba(31,122,140,0.05);
     border:0.5px solid var(--border);
-    border-radius:10px;
-    padding:10px 12px;
+    border-radius:12px;
+    padding:12px 14px;
   }
   .hcard.done .timer-row{
     background:rgba(255,255,255,0.05);
@@ -3771,74 +3812,76 @@ body > *{position:relative;z-index:1;}
     flex-wrap:nowrap;
   }
   .timer-display{
-    font-size:.88rem;
-    font-weight:700;
-    min-width:54px;
+    font-size:1rem;
+    font-weight:800;
+    letter-spacing:-.02em;
+    min-width:56px;
     flex-shrink:0;
   }
   .timer-target{
-    font-size:.65rem;
+    font-size:.68rem;
+    font-weight:500;
     flex:1;
   }
-  /* Timer buttons — right-aligned, larger tap targets */
   .tbtn{
-    padding:6px 12px;
-    font-size:.65rem;
-    border-radius:8px;
+    padding:8px 14px;
+    font-size:.68rem;
+    font-weight:600;
+    border-radius:9px;
     margin-left:5px;
     flex-shrink:0;
-    min-width:36px;
+    min-width:40px;
     text-align:center;
+    letter-spacing:.03em;
   }
 
-  /* ── Links — larger, properly spaced pill buttons ── */
+  /* ── LINKS ── */
   .hlinks{
     display:flex;
     flex-wrap:wrap;
     gap:6px;
-    margin:10px 12px 0;
+    margin:10px 14px 0;
   }
   .hlink:not(.sm){
-    padding:7px 13px;
-    font-size:.65rem;
-    border-radius:8px;
+    padding:8px 14px;
+    font-size:.68rem;
+    font-weight:600;
+    border-radius:9px;
     line-height:1.2;
+    letter-spacing:.02em;
   }
 
-  /* ── Reading block ── */
+  /* ── READING ── */
   .reading-block{
-    margin:10px 12px 0;
-    border-radius:10px;
-    padding:12px;
+    margin:10px 14px 0;
+    border-radius:12px;
+    padding:13px;
   }
-  .reading-title{ font-size:.82rem; }
-  .reading-author{ font-size:.62rem; }
-  .reading-prog-label{ font-size:.6rem; }
+  .reading-title{ font-size:.86rem; font-weight:700; }
+  .reading-author{ font-size:.64rem; }
+  .reading-prog-label{ font-size:.62rem; }
 
   /* ── Card bottom spacing ── */
   .hcard > *:last-child{
     margin-bottom:16px;
   }
-  /* ensure hcard-header never has bottom margin from last-child rule */
-  .hcard-header{
-    margin-bottom:0 !important;
-  }
 
   /* not-today ribbon */
   .not-today-ribbon{
     display:inline-block;
-    margin:6px 0 0 16px;
+    margin:8px 0 0 18px;
     font-family:'JetBrains Mono',monospace;
-    font-size:.52rem;
+    font-size:.58rem;
+    font-weight:600;
     color:var(--muted);
     background:var(--s2);
-    border-radius:4px;
-    padding:2px 7px;
-    letter-spacing:.06em;
+    border-radius:5px;
+    padding:3px 9px;
+    letter-spacing:.07em;
     text-transform:uppercase;
   }
   .not-sched-tag{
-    margin:6px 0 0 16px;
+    margin:8px 0 0 18px;
   }
 
 
@@ -3867,10 +3910,10 @@ body > *{position:relative;z-index:1;}
   .dtp-pop{left:8px!important;right:8px;width:auto!important;min-width:0!important;}
   /* Nav sync in burger area — show as regular menu item */
   .nav-sync-btn{display:none!important;}
+  /* Hide AI Plan button from nav on mobile — it's accessible via burger menu */
+  #navAiPlanBtn{display:none!important;}
   /* On mobile: hide the profile button — it lives inside burger menu */
   #navProfileBtn{display:none!important;}
-  /* Hide AI plan btn from nav when burger menu is open (it's in the sheet) */
-  .burger-open #navAiPlanBtn{display:none;}
 }
 @media(max-width:380px){
   .stats-row{grid-template-columns:repeat(2,1fr);}
@@ -7498,13 +7541,13 @@ function renderTodayCards(){
       ?`<div class="time-block-pill${_todayCustom?' tbp-custom':''}" data-dtp-hid="${h.id}" data-dtp-dk="${TODAY_KEY}" title="Tap to change time for today">⏱ ${fmtEffTime(_todayEff)}</div>`
       :`<div class="time-block-pill unscheduled-pill" data-dtp-hid="${h.id}" data-dtp-dk="${TODAY_KEY}" title="Tap to set a time for today">◈ All day</div>`;
 
-    // ── Week Schedule Pills (TODAY → today+6) ────────────────────
+    // ── Week Schedule Pills (TODAY → today+8) — 9 pills, 3 visible at a time ────────────────────
     const curWeekKey=getWeekKey(TODAY);
-    // Collect ALL week-keys spanned by the 7-day rolling window (usually 1, occasionally 2)
-    const rollingWeekKeys=[...new Set(Array.from({length:7},(_,i)=>getWeekKey(aD(TODAY,i))))];
+    // Collect ALL week-keys spanned by the 9-day rolling window
+    const rollingWeekKeys=[...new Set(Array.from({length:9},(_,i)=>getWeekKey(aD(TODAY,i))))];
     const hasOvr=rollingWeekKeys.some(wk=>D._weekOvr[h.id+'-'+wk]!==undefined);
     const DAY_SHORT2=['Su','Mo','Tu','We','Th','Fr','Sa'];
-    const weekPillsHtml=Array.from({length:7},(_,i)=>{
+    const weekPillsHtml=Array.from({length:9},(_,i)=>{
       const day=aD(TODAY,i);      // i=0 → today, i=1 → tomorrow, …
       const dk=tk(day);
       const isTod=i===0;
@@ -7515,18 +7558,26 @@ function renderTodayCards(){
       else if(isSchedDay) cls+=' wp-sched';
       if(isTod) cls+=' wp-today';
       const hasCustomTime=!!getDayTime(h.id,dk);
+      const effTime=getEffectiveTime(h,dk);
+      const timeLabel=effTime?fmtEffTime(effTime):'⏱';
       const dayName=DAY_FULL[day.getDay()];
       return `<div class="${cls}" data-wdk="${dk}" title="${dayName} ${day.getDate()}${isTod?' (today)':''}${isSchedDay?' · scheduled':' · not scheduled'}">
         <span class="hwp-day">${DAY_SHORT2[day.getDay()]}</span>
         <span class="hwp-num">${day.getDate()}</span>
-        <span class="hwp-clock-btn${hasCustomTime?' has-custom':''}" data-dtp-hid="${h.id}" data-dtp-dk="${dk}" title="${hasCustomTime?'Custom time set — click to edit':'Set time for this day'}">⏱</span>
+        <span class="hwp-clock-btn${hasCustomTime?' has-custom':''}" data-dtp-hid="${h.id}" data-dtp-dk="${dk}" title="${hasCustomTime?'Custom time — tap to edit':'Set time for this day'}">${hasCustomTime?timeLabel:'⏱'}</span>
       </div>`;
     }).join('');
     const weekRowHtml=!h.isActivity?`
-      <div class="hweek-row">${weekPillsHtml}</div>
+      <div class="hweek-row" data-hid="${h.id}">
+        <button class="hwp-nav hwp-prev hwp-hidden" data-hid="${h.id}" aria-label="Previous days">‹</button>
+        <div class="hwp-window" data-hid="${h.id}">
+          <div class="hwp-track" data-hid="${h.id}" data-offset="0">${weekPillsHtml}</div>
+        </div>
+        <button class="hwp-nav hwp-next" data-hid="${h.id}" aria-label="Next days">›</button>
+      </div>
       ${hasOvr?`<div class="hweek-ovr-row"><span class="hweek-ovr-badge" data-act="clearWeekOvr">↺ reset schedule</span><span class="hweek-label">custom</span></div>`:''}
     `:'';
-    const _weekPillDays=Array.from({length:7},(_,i)=>tk(aD(TODAY,i)));
+    const _weekPillDays=Array.from({length:9},(_,i)=>tk(aD(TODAY,i)));
 
     card.innerHTML=`
       ${mit?'<div class="mit-crown">👑</div>':''}
@@ -7607,6 +7658,88 @@ function renderTodayCards(){
         showToast(nowOn?`＋ ${h.name} on ${dayLabel}`:`− ${h.name} off ${dayLabel}`);
       });
     });
+
+    // ── 3-pill sliding window navigation ──
+    (()=>{
+      const row=card.querySelector('.hweek-row');
+      if(!row) return;
+      const track=row.querySelector('.hwp-track');
+      const win=row.querySelector('.hwp-window');
+      const prevBtn=row.querySelector('.hwp-prev');
+      const nextBtn=row.querySelector('.hwp-next');
+      if(!track||!win||!prevBtn||!nextBtn) return;
+      const TOTAL=9, VISIBLE=3, MAX_OFFSET=TOTAL-VISIBLE;
+      let offset=0;
+      const GAP=5;
+
+      function isMob(){ return window.innerWidth<=640; }
+
+      function pillWidth(){
+        // Window width is constant (arrows always occupy space via visibility:hidden).
+        // 3 pills + 2 gaps must fill the window exactly.
+        const w = win.getBoundingClientRect().width || win.offsetWidth;
+        // pill = (window - 2 gaps) / 3
+        return Math.floor((w - GAP * (VISIBLE - 1)) / VISIBLE);
+      }
+
+      function applyOffset(o,animate){
+        if(!isMob()) return;
+        offset=Math.max(0,Math.min(MAX_OFFSET,o));
+        track.dataset.offset=offset;
+        const pw=pillWidth();
+        track.style.transition=animate?'transform 0.32s cubic-bezier(0.23,1,0.32,1)':'none';
+        track.style.transform=`translateX(-${offset*(pw+GAP)}px)`;
+        prevBtn.classList.toggle('hwp-hidden',offset===0);
+        nextBtn.classList.toggle('hwp-hidden',offset>=MAX_OFFSET);
+      }
+
+      function initMobile(){
+        const w = win.getBoundingClientRect().width || win.offsetWidth;
+        if(!w){
+          // Layout not ready yet, retry once more
+          requestAnimationFrame(initMobile);
+          return;
+        }
+        const pw = pillWidth();
+        const pills = track.querySelectorAll('.hweek-pill');
+        pills.forEach(p=>{
+          p.style.flex = `0 0 ${pw}px`;
+          p.style.width = `${pw}px`;
+          p.style.minWidth = `${pw}px`;
+          p.style.maxWidth = `${pw}px`;
+          p.style.boxSizing = 'border-box';
+        });
+        applyOffset(offset, false);
+      }
+
+      function initDesktop(){
+        track.style.transform='';
+        track.style.transition='';
+        const pills=track.querySelectorAll('.hweek-pill');
+        pills.forEach(p=>{ p.style.flex=''; p.style.minWidth=''; p.style.maxWidth=''; });
+        prevBtn.style.display='none';
+        nextBtn.style.display='none';
+      }
+
+      if(isMob()){
+        // Use RAF to ensure layout is complete before measuring
+        requestAnimationFrame(()=>{ requestAnimationFrame(initMobile); });
+      } else {
+        initDesktop();
+      }
+
+      prevBtn.addEventListener('click',e=>{ e.stopPropagation(); applyOffset(offset-3,true); });
+      nextBtn.addEventListener('click',e=>{ e.stopPropagation(); applyOffset(offset+3,true); });
+
+      // Swipe support
+      let txStart=0,txOffStart=0;
+      win.addEventListener('touchstart',e=>{ txStart=e.touches[0].clientX; txOffStart=offset; },{passive:true});
+      win.addEventListener('touchend',e=>{
+        if(!isMob()) return;
+        const dx=e.changedTouches[0].clientX-txStart;
+        if(Math.abs(dx)>40) applyOffset(dx<0?txOffStart+3:txOffStart-3,true);
+      },{passive:true});
+    })();
 
     // Per-day time badges — open DTP popover
     card.querySelectorAll('[data-dtp-hid]').forEach(el=>{
