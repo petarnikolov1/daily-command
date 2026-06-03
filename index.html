@@ -900,23 +900,93 @@ body > *{position:relative;z-index:1;}
 }
 .nav-btn.active::after{transform:translateX(-50%) scaleX(1);opacity:1;}
  
+/* ── BURGER ── */
 .burger{
-  display:none;flex-direction:column;gap:5px;cursor:pointer;
-  padding:8px;border-radius:var(--r-sm);border:none;
-  background:transparent;margin-left:auto;
+  display:none;flex-direction:column;justify-content:center;gap:0;cursor:pointer;
+  padding:8px 6px;border-radius:var(--r-sm);border:none;
+  background:transparent;margin-left:auto;width:36px;height:36px;
+  position:relative;
 }
-.burger span{width:20px;height:1px;background:var(--text-mid);border-radius:2px;transition:all 0.3s;}
- 
+.burger span{
+  position:absolute;left:50%;transform:translateX(-50%);
+  width:20px;height:1.5px;background:var(--text-mid);border-radius:4px;
+  transition:transform 0.38s cubic-bezier(.23,1,.32,1),
+             opacity 0.22s ease,
+             top 0.35s cubic-bezier(.23,1,.32,1),
+             width 0.3s ease;
+}
+.burger span:nth-child(1){top:10px;}
+.burger span:nth-child(2){top:17px;}
+.burger span:nth-child(3){top:24px;width:13px;}
+.burger.open span:nth-child(1){top:17px;transform:translateX(-50%) rotate(45deg);}
+.burger.open span:nth-child(2){opacity:0;transform:translateX(-50%) scaleX(0);}
+.burger.open span:nth-child(3){top:17px;width:20px;transform:translateX(-50%) rotate(-45deg);}
+
+/* ── MOBILE MENU: bottom-sheet style ── */
 .mobile-menu{
-  display:none;
-  position:fixed;top:var(--nav-h);left:0;right:0;
-  background:rgba(2,27,38,0.97);
-  backdrop-filter:blur(24px);
-  border-bottom:0.5px solid var(--border);
-  z-index:199;padding:16px;flex-direction:column;gap:2px;
+  display:block;
+  position:fixed;inset:0;
+  z-index:299;
+  pointer-events:none;
 }
-.mobile-menu.open{display:flex;}
-.mobile-menu .nav-btn{text-align:left;padding:12px 16px;border-radius:var(--r-sm);}
+.mm-backdrop{
+  position:absolute;inset:0;
+  background:rgba(1,14,20,0.72);
+  backdrop-filter:blur(6px);
+  opacity:0;
+  transition:opacity 0.3s ease;
+}
+.mm-sheet{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(180deg,rgba(3,32,46,0.99) 0%,rgba(2,22,32,1) 100%);
+  border-top:0.5px solid rgba(44,165,191,0.18);
+  border-radius:20px 20px 0 0;
+  padding:0 16px 32px;
+  transform:translateY(100%);
+  transition:transform 0.42s cubic-bezier(.23,1,.32,1);
+  box-shadow:0 -8px 48px rgba(0,0,0,0.6), 0 -1px 0 rgba(44,165,191,0.12);
+  max-height:85vh;overflow-y:auto;
+}
+.mm-drag-handle{
+  width:36px;height:3px;
+  background:rgba(44,165,191,0.25);
+  border-radius:2px;
+  margin:12px auto 18px;
+}
+.mm-divider{
+  height:0.5px;background:rgba(44,165,191,0.1);
+  margin:8px 0 6px;
+}
+.mm-ai-btn{color:var(--teal2)!important;}
+.mm-ai-btn .ai-dot{
+  display:inline-block;width:6px;height:6px;
+  background:var(--teal2);border-radius:50%;
+  margin-right:7px;
+  box-shadow:0 0 6px var(--teal2);
+  animation:pulse 2s infinite;
+}
+.mm-profile-btn{color:var(--muted)!important;}
+.mobile-menu.open{pointer-events:all;}
+.mobile-menu.open .mm-backdrop{opacity:1;}
+.mobile-menu.open .mm-sheet{transform:translateY(0);}
+.mobile-menu .nav-btn{
+  text-align:left;padding:13px 12px;border-radius:10px;
+  font-size:.8rem;font-family:'Syne',sans-serif;font-weight:600;
+  letter-spacing:.04em;
+  opacity:0;transform:translateY(10px);
+  transition:opacity 0.28s ease, transform 0.28s ease, background 0.2s, color 0.2s;
+}
+.mobile-menu.open .nav-btn{opacity:1;transform:translateY(0);}
+.mobile-menu.open .nav-btn:nth-child(2){transition-delay:.04s;}
+.mobile-menu.open .nav-btn:nth-child(3){transition-delay:.08s;}
+.mobile-menu.open .nav-btn:nth-child(4){transition-delay:.12s;}
+.mobile-menu.open .nav-btn:nth-child(5){transition-delay:.16s;}
+.mobile-menu.open .nav-btn:nth-child(6){transition-delay:.20s;}
+.mobile-menu.open .nav-btn:nth-child(7){transition-delay:.24s;}
+.mobile-menu.open .nav-btn:nth-child(8){transition-delay:.28s;}
+.mobile-menu.open .nav-btn:nth-child(9){transition-delay:.30s;}
+.mobile-menu.open .nav-btn:nth-child(10){transition-delay:.32s;}
+
 @media(max-width:640px){.nav-links{display:none;}.burger{display:flex;}}
  
 /* ── PAGES ── */
@@ -3289,30 +3359,57 @@ body > *{position:relative;z-index:1;}
   /* Progress charts stack */
   .prog-row{flex-direction:column;}
   .prog-chart-block{min-width:0;width:100%;}
-  /* Week grid — horizontal scroll */
+  /* Week grid — single day view on mobile */
   .week-grid{
-    display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;
-    scroll-snap-type:x mandatory;
-    gap:4px;padding-bottom:8px;
-    scrollbar-width:none;
+    display:flex;overflow:hidden;
+    gap:0;padding-bottom:0;
   }
-  .week-grid::-webkit-scrollbar{display:none;}
+  .week-grid-wrap{position:relative;}
+  .week-grid-wrap::after{display:none;}
   .day-col{
-    min-width:110px;flex-shrink:0;
-    scroll-snap-align:start;
+    min-width:100%;flex-shrink:0;
+    transition:transform 0.35s cubic-bezier(.23,1,.32,1), opacity 0.25s ease;
+  }
+  .day-col.day-slide-out-left{ transform:translateX(-100%); opacity:0; position:absolute; }
+  .day-col.day-slide-out-right{ transform:translateX(100%); opacity:0; position:absolute; }
+  .day-col.day-slide-in-left{ animation: slideInLeft 0.32s cubic-bezier(.23,1,.32,1) forwards; }
+  .day-col.day-slide-in-right{ animation: slideInRight 0.32s cubic-bezier(.23,1,.32,1) forwards; }
+  @keyframes slideInLeft{
+    from{transform:translateX(100%);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+  @keyframes slideInRight{
+    from{transform:translateX(-100%);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
   }
   .day-body{min-height:120px;}
-  /* Scroll hint */
-  .week-grid-wrap{position:relative;}
-  .week-grid-wrap::after{
-    content:'← swipe →';
-    display:block;
-    text-align:center;
-    font-family:'JetBrains Mono',monospace;
-    font-size:.5rem;
-    color:var(--muted2);
-    letter-spacing:.1em;
-    padding-top:2px;
+  /* Mobile day nav row */
+  .mobile-day-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:8px;padding:6px 0 12px;
+  }
+  .mobile-day-nav button{
+    width:38px;height:38px;border-radius:50%;
+    border:0.5px solid var(--border);background:rgba(31,122,140,0.08);
+    color:var(--teal2);font-size:1.1rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background 0.18s, transform 0.15s;
+    flex-shrink:0;
+  }
+  .mobile-day-nav button:active{transform:scale(0.92);background:rgba(31,122,140,0.18);}
+  .mobile-day-nav .mdn-label{
+    font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;
+    color:var(--text);text-align:center;flex:1;
+    letter-spacing:.03em;
+  }
+  .mobile-day-nav .mdn-label .mdn-date{
+    font-family:'JetBrains Mono',monospace;font-size:.6rem;
+    color:var(--muted);display:block;margin-top:2px;
+  }
+  .mdn-today-dot{
+    display:inline-block;width:5px;height:5px;border-radius:50%;
+    background:var(--teal2);margin-left:6px;vertical-align:middle;
+    box-shadow:0 0 5px var(--teal2);
   }
   /* Habits grid 1 col */
   .habits-grid{grid-template-columns:1fr;}
@@ -4863,13 +4960,19 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
   </button>
 </nav>
 <div class="mobile-menu" id="mobileMenu">
-  <button class="nav-btn active" data-page="dashboard">Dashboard</button>
-  <button class="nav-btn" data-page="calendar">Calendar</button>
-  <button class="nav-btn" data-page="todos">To-Do Lists</button>
-  <button class="nav-btn" data-page="notes">Notes</button>
-  <button class="nav-btn" data-page="beast">You vs You</button>
-  <button class="nav-btn" data-page="quiz">📝 Quiz</button>
-  <button class="nav-btn" id="mobileSyncBtn" style="color:var(--teal2);margin-top:4px;border-top:0.5px solid var(--border);padding-top:12px;">⇅ Sync Data (Cross-Device)</button>
+  <div class="mm-backdrop" id="mmBackdrop"></div>
+  <div class="mm-sheet" id="mmSheet">
+    <div class="mm-drag-handle"></div>
+    <button class="nav-btn active" data-page="dashboard">Dashboard</button>
+    <button class="nav-btn" data-page="calendar">Calendar</button>
+    <button class="nav-btn" data-page="todos">To-Do Lists</button>
+    <button class="nav-btn" data-page="notes">Notes</button>
+    <button class="nav-btn" data-page="beast">You vs You</button>
+    <button class="nav-btn" data-page="quiz">Quiz</button>
+    <div class="mm-divider"></div>
+    <button class="nav-btn mm-ai-btn" id="mobileAiPlanBtn"><span class="ai-dot"></span>AI Plan</button>
+    <button class="nav-btn mm-profile-btn" id="mobileProfileBtn">⚙ Settings &amp; Account</button>
+  </div>
 </div>
 
 <!-- ══ MOBILE EXPORT MODAL ══ -->
@@ -5214,6 +5317,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     <span class="wl" id="weekLabel"></span>
     <button id="nextWeek">&#8594;</button>
     <button id="todayBtn" style="font-family:'Syne',sans-serif;font-size:.7rem;">Today</button>
+  </div>
+  <!-- Mobile single-day navigator (hidden on desktop via CSS) -->
+  <div class="mobile-day-nav" id="mobileDayNav" style="display:none;">
+    <button id="mdnPrev" aria-label="Previous day">&#8592;</button>
+    <div class="mdn-label">
+      <span id="mdnDayName">Monday</span>
+      <span class="mdn-date" id="mdnDateStr"></span>
+    </div>
+    <button id="mdnNext" aria-label="Next day">&#8594;</button>
   </div>
   <div class="week-grid-wrap"><div class="week-grid" id="weekGrid"></div></div>
 
@@ -5803,10 +5915,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 // 2. Project Settings → API → copy Project URL and anon/public key
 // 3. Paste them below — these are safe to expose in client-side code
 // ═══════════════════════════════════════════════════════════════════════
-const SUPABASE_URL  = 'https://rxydxfdihguufheucyfl.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4eWR4ZmRpaGd1dWZoZXVjeWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzOTMzNzYsImV4cCI6MjA5NTk2OTM3Nn0.s_4NCKBsR6ijKdGuJa6lu7_oWg8cFCKU1lnkM8saJnY'; // starts with eyJ…
-
-
+const SUPABASE_URL  = 'YOUR_SUPABASE_URL';   // e.g. https://xxxx.supabase.co
+const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY'; // starts with eyJ…
 
 // ── Init Supabase client ──────────────────────────────────────────────
 const _sbConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY';
@@ -9765,6 +9875,112 @@ document.getElementById('prevWeek').addEventListener('click',()=>{viewMon=aD(vie
 document.getElementById('nextWeek').addEventListener('click',()=>{viewMon=aD(viewMon,7);render();});
 document.getElementById('todayBtn').addEventListener('click',()=>{viewMon=gMon(TODAY);render();});
 
+// ── Mobile single-day view ────────────────────────────────────────────
+(function(){
+  let _mobileDay = null; // index 0-6 within current viewMon week, or null = show all
+
+  function _isMobile(){ return window.innerWidth <= 640; }
+
+  function _mdnUpdate(dir){
+    if(!_isMobile()) return;
+    const nav = document.getElementById('mobileDayNav');
+    if(nav) nav.style.display = 'flex';
+
+    const grid = document.getElementById('weekGrid');
+    if(!grid) return;
+    const cols = grid.querySelectorAll('.day-col');
+    if(!cols.length) return;
+
+    // Init: default to today's column index
+    if(_mobileDay === null){
+      _mobileDay = 0;
+      for(let i=0;i<7;i++){
+        const d = aD(viewMon, i);
+        if(tk(d) === TODAY_KEY){ _mobileDay = i; break; }
+      }
+    }
+    // Clamp
+    _mobileDay = Math.max(0, Math.min(6, _mobileDay));
+
+    cols.forEach((col, i) => {
+      col.style.display = i === _mobileDay ? '' : 'none';
+    });
+
+    // Animate
+    if(dir){
+      const col = cols[_mobileDay];
+      col.classList.remove('day-slide-in-left','day-slide-in-right');
+      void col.offsetWidth; // reflow
+      col.classList.add(dir === 'next' ? 'day-slide-in-left' : 'day-slide-in-right');
+    }
+
+    // Update label
+    const day = aD(viewMon, _mobileDay);
+    const isToday = tk(day) === TODAY_KEY;
+    const dn = document.getElementById('mdnDayName');
+    const ds = document.getElementById('mdnDateStr');
+    if(dn) dn.innerHTML = DAY_SHORT[_mobileDay].toUpperCase() + (isToday ? '<span class="mdn-today-dot"></span>' : '');
+    if(ds) ds.textContent = day.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  }
+
+  function _mdnReset(){ _mobileDay = null; }
+
+  // Expose so render() can trigger it
+  window._mdnApply = function(dir){ if(_isMobile()) _mdnUpdate(dir); };
+  window._mdnReset = _mdnReset;
+  window._mdnGetDay = function(){ return _mobileDay; };
+
+  document.getElementById('mdnPrev').addEventListener('click', ()=>{
+    if(_mobileDay === null) _mobileDay = 3;
+    if(_mobileDay === 0){ viewMon = aD(viewMon,-7); _mobileDay = 6; render(); return; }
+    _mobileDay--;
+    _mdnUpdate('prev');
+  });
+  document.getElementById('mdnNext').addEventListener('click', ()=>{
+    if(_mobileDay === null) _mobileDay = 3;
+    if(_mobileDay === 6){ viewMon = aD(viewMon,7); _mobileDay = 0; render(); return; }
+    _mobileDay++;
+    _mdnUpdate('next');
+  });
+
+  // Run after each renderWeekGrid on mobile
+  const _origRWG = renderWeekGrid;
+  renderWeekGrid = function(){
+    _origRWG();
+    if(_isMobile()) _mdnUpdate(null);
+  };
+
+  // Hide mobile-day-nav on desktop resize
+  window.addEventListener('resize', ()=>{
+    const nav = document.getElementById('mobileDayNav');
+    if(!_isMobile()){
+      if(nav) nav.style.display = 'none';
+      // Show all columns
+      const grid = document.getElementById('weekGrid');
+      if(grid) grid.querySelectorAll('.day-col').forEach(c=>c.style.display='');
+    } else {
+      if(nav) nav.style.display = 'flex';
+      _mdnUpdate(null);
+    }
+  });
+
+  // Swipe support on the week-grid-wrap
+  (function(){
+    let sx=0,sy=0;
+    const wrap = document.querySelector('.week-grid-wrap');
+    if(!wrap) return;
+    wrap.addEventListener('touchstart', e=>{ sx=e.touches[0].clientX; sy=e.touches[0].clientY; },{passive:true});
+    wrap.addEventListener('touchend', e=>{
+      if(!_isMobile()) return;
+      const dx = e.changedTouches[0].clientX - sx;
+      const dy = e.changedTouches[0].clientY - sy;
+      if(Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx)*0.8) return;
+      if(dx < 0) document.getElementById('mdnNext').click();
+      else        document.getElementById('mdnPrev').click();
+    },{passive:true});
+  })();
+})();
+
 
 
 // function renderBeastGrid(){
@@ -10032,9 +10248,43 @@ function switchPage(page){
   document.getElementById('mobileMenu').classList.remove('open');
 }
 document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>switchPage(btn.dataset.page)));
-document.getElementById('burgerBtn').addEventListener('click',()=>{
-  document.getElementById('mobileMenu').classList.toggle('open');
-});
+(function(){
+  const burger = document.getElementById('burgerBtn');
+  const menu   = document.getElementById('mobileMenu');
+  const backdrop = document.getElementById('mmBackdrop');
+
+  function openMenu(){
+    menu.classList.add('open');
+    burger.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeMenu(){
+    menu.classList.remove('open');
+    burger.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  burger.addEventListener('click', ()=>{
+    if(menu.classList.contains('open')) closeMenu(); else openMenu();
+  });
+  backdrop.addEventListener('click', closeMenu);
+
+  // Mobile AI Plan button
+  const mAiBtn = document.getElementById('mobileAiPlanBtn');
+  if(mAiBtn) mAiBtn.addEventListener('click', ()=>{
+    closeMenu();
+    const aiBtn = document.getElementById('navAiPlanBtn');
+    if(aiBtn) aiBtn.click();
+  });
+
+  // Mobile Profile/Settings button
+  const mProfBtn = document.getElementById('mobileProfileBtn');
+  if(mProfBtn) mProfBtn.addEventListener('click', ()=>{
+    closeMenu();
+    const profBtn = document.getElementById('navProfileBtn');
+    if(profBtn) profBtn.click();
+  });
+})();
 
 // ── SHOW-ALL TOGGLE ─────────────────────────────────────────────────────
 document.getElementById('showAllToggle').addEventListener('click',()=>{
@@ -10309,13 +10559,7 @@ async function _applyDataPack(raw){
   backdrop.addEventListener('click', closeSettings);
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSettings(); });
 
-  // ── Mobile sync button (keep working) ──────────────────────────────
-  const mobSync = document.getElementById('mobileSyncBtn');
-  if(mobSync) mobSync.addEventListener('click',()=>{
-    document.getElementById('mobileMenu').classList.remove('open');
-    if(!_currentUser){showToast('⚠ Please sign in first');return;}
-    openSettings();
-  });
+  // mobileSyncBtn removed from menu — sync is now via Settings & Account
 
   // ── Gemini key save ─────────────────────────────────────────────────
   document.getElementById('settingsKeyToggle').addEventListener('click',()=>{
