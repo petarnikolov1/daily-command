@@ -5803,9 +5803,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 // 2. Project Settings → API → copy Project URL and anon/public key
 // 3. Paste them below — these are safe to expose in client-side code
 // ═══════════════════════════════════════════════════════════════════════
-const SUPABASE_URL  = 'https://rxydxfdihguufheucyfl.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4eWR4ZmRpaGd1dWZoZXVjeWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzOTMzNzYsImV4cCI6MjA5NTk2OTM3Nn0.s_4NCKBsR6ijKdGuJa6lu7_oWg8cFCKU1lnkM8saJnY'; // starts with eyJ…
-
+const SUPABASE_URL  = 'YOUR_SUPABASE_URL';   // e.g. https://xxxx.supabase.co
+const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY'; // starts with eyJ…
 
 // ── Init Supabase client ──────────────────────────────────────────────
 const _sbConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY';
@@ -5847,6 +5846,24 @@ async function sd(){
       if(error) console.error('Save error:', error.message);
     } catch(e){ console.error('Save exception:', e); }
   }, 800);
+}
+
+// ── Immediate (non-debounced) save — used after import ──────────────
+async function _sdImmediate(){
+  clearTimeout(_sdDebounce);
+  if(_localMode){
+    try{ localStorage.setItem(_localKey(), JSON.stringify(D)); }catch(e){ console.error('Local save error:',e); }
+    return;
+  }
+  if(!_sbUserId || !_sb) return;
+  try{
+    const { error } = await _sb.from('user_data').upsert({
+      user_id: _sbUserId,
+      data: D,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    if(error) console.error('Import save error:', error.message);
+  } catch(e){ console.error('Import save exception:', e); }
 }
 
 // ── Load from Supabase OR localStorage ───────────────────────────────
@@ -10173,31 +10190,61 @@ document.addEventListener('mouseover', e => {
 
 // ═══════════════════════════════════════════════════════════════════════
 // DATA SYNC — cross-device export / import
-// Pack = { v:2, user, auth:{salt,hash}, data:{...D} }
-// Credentials are exported as the stored hash+salt — NOT the plain-text
-// password. The same password still works after import on a new device.
+// Pack = { v:3, user, mode:'cloud'|'local', exportedAt, data:{...D} }
+// v3 drops the old salt/hash auth fields. Supabase manages cloud auth;
+// local mode stores data in localStorage, no credentials needed in pack.
 // ═══════════════════════════════════════════════════════════════════════
+
+// Legacy stubs so any old code references don't throw ReferenceErrors
+function _getUsers(){ try{ return JSON.parse(localStorage.getItem('dcmd_users')||'{}')} catch{ return {}; } }
+function _saveUsers(u){ try{ localStorage.setItem('dcmd_users', JSON.stringify(u)); }catch(e){} }
+
 function _buildDataPack(){
   if(!_currentUser) return null;
-  const users=_getUsers();
-  const auth=users[_currentUser];
-  if(!auth) return null;
-  return JSON.stringify({v:2,user:_currentUser,auth,data:D},null,0);
+  // Export the live in-memory D object — always up to date
+  return JSON.stringify({
+    v: 3,
+    user: _currentUser,
+    mode: _localMode ? 'local' : 'cloud',
+    exportedAt: new Date().toISOString(),
+    data: D
+  }, null, 0);
 }
 
-function _applyDataPack(raw){
+async function _applyDataPack(raw){
   let pack;
-  try{pack=JSON.parse(raw);}catch{return{ok:false,msg:'Invalid data — could not parse JSON.'};}
-  if(!pack||pack.v!==2||!pack.user||!pack.auth||!pack.data)
-    return{ok:false,msg:'Unrecognised format. Make sure you copied the full data pack.'};
-  const uname=pack.user.trim().toLowerCase();
-  // Merge auth credentials
-  const users=_getUsers();
-  users[uname]={salt:pack.auth.salt,hash:pack.auth.hash};
-  _saveUsers(users);
-  // Write user data
-  localStorage.setItem('dcmd_v6_'+uname,JSON.stringify(pack.data));
-  return{ok:true,user:uname};
+  try{ pack = JSON.parse(raw); }
+  catch{ return { ok:false, msg:'Invalid JSON — make sure you copied the entire data pack.' }; }
+
+  // Accept both v2 (legacy local-only packs) and v3 (current)
+  if(!pack || !pack.data || !(pack.v === 2 || pack.v === 3)){
+    return { ok:false, msg:'Unrecognised format. Pack should start with {"v":2 or {"v":3.' };
+  }
+
+  // Fill any missing keys with defaults before applying
+  const imported = pack.data;
+  const _ri = (k, v) => { if(imported[k] === undefined) imported[k] = v; };
+  _ri('_videos',{});
+  _ri('_habits', JSON.parse(JSON.stringify(DEFAULT_HABITS)));
+  _ri('_todos',{daily:[],weekly:[],unscheduled:[]});
+  _ri('_calOvr',{}); _ri('_events',{}); _ri('_dayNotes',{});
+  _ri('_notesDates',{}); _ri('_timers',{}); _ri('_dayReps',{});
+  _ri('_books',{current:null,library:[]}); _ri('_bookProg',{});
+  _ri('_mits',{}); _ri('_beastDays',{}); _ri('_weekOvr',{});
+  _ri('_dayTimes',{}); _ri('_routines',[]);
+
+  // Apply to live state
+  D = imported;
+
+  // Persist immediately (no debounce) so data is saved before UI closes
+  try{ await _sdImmediate(); }catch(e){ console.warn('Import save error:', e); }
+
+  // Re-render the whole UI
+  try{ render(); }catch(e){}
+  try{ renderTodos(); }catch(e){}
+  try{ renderNotesDate(); }catch(e){}
+
+  return { ok:true, user: pack.user || _currentUser };
 }
 
 // ── Settings Panel ────────────────────────────────────────────────────
@@ -10361,14 +10408,22 @@ function _applyDataPack(raw){
   });
 
   // ── Settings panel sync: import ──────────────────────────────────
-  document.getElementById('spImportBtn').addEventListener('click',()=>{
-    const raw=document.getElementById('spImportText').value.trim();
-    const st=document.getElementById('spImportStatus');
-    if(!raw){st.textContent='⚠ Paste your data pack first.';st.style.color='var(--red)';return;}
-    const res=_applyDataPack(raw);
-    if(!res.ok){st.textContent='✗ '+res.msg;st.style.color='var(--red)';return;}
-    st.textContent=`✓ Imported! Signing you out…`;st.style.color='var(--green)';
-    setTimeout(()=>{ closeSettings(); _logout(); },1800);
+  document.getElementById('spImportBtn').addEventListener('click', async ()=>{
+    const raw = document.getElementById('spImportText').value.trim();
+    const st  = document.getElementById('spImportStatus');
+    const btn = document.getElementById('spImportBtn');
+    if(!raw){ st.textContent='⚠ Paste your data pack first.'; st.style.color='var(--red)'; return; }
+    btn.disabled = true;
+    st.textContent = 'Importing…'; st.style.color = 'var(--teal2)';
+    const res = await _applyDataPack(raw);
+    btn.disabled = false;
+    if(!res.ok){ st.textContent = '✗ ' + res.msg; st.style.color = 'var(--red)'; return; }
+    // Cloud users: data is already saved to Supabase and UI re-rendered — just close
+    // Local users: data is in localStorage — also just close
+    st.textContent = '✓ Data imported and applied!';
+    st.style.color = 'var(--green)';
+    document.getElementById('spImportText').value = '';
+    setTimeout(()=>{ closeSettings(); showToast('✓ Import complete'); }, 1200);
   });
 
   // ── Settings logout ───────────────────────────────────────────────
