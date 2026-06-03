@@ -81,12 +81,16 @@
 /* ── Overlay backdrop ── */
 #aiPlannerOverlay{
   display:none;
-  position:fixed;inset:0;z-index:400;
+  position:fixed;inset:0;
+  /* z-index below the nav (200) so the burger/nav remain accessible on mobile */
+  z-index:198;
   background:rgba(0,10,16,0.82);
   backdrop-filter:blur(8px) saturate(1.2);
   -webkit-backdrop-filter:blur(8px) saturate(1.2);
   align-items:center;justify-content:center;
-  padding:20px;
+  /* Leave room for the nav bar at the top on mobile */
+  padding-top:calc(var(--nav-h) + 8px);
+  padding-left:20px;padding-right:20px;padding-bottom:20px;
 }
 #aiPlannerOverlay.open{display:flex;}
 
@@ -902,60 +906,64 @@ body > *{position:relative;z-index:1;}
  
 /* ── BURGER ── */
 .burger{
-  display:none;flex-direction:column;justify-content:center;gap:0;cursor:pointer;
-  padding:8px 6px;border-radius:var(--r-sm);border:none;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;padding:8px 6px;border-radius:var(--r-sm);border:none;
   background:transparent;margin-left:auto;width:36px;height:36px;
-  position:relative;
 }
 .burger span{
-  position:absolute;left:50%;transform:translateX(-50%);
-  width:20px;height:1.5px;background:var(--text-mid);border-radius:4px;
-  transition:transform 0.38s cubic-bezier(.23,1,.32,1),
-             opacity 0.22s ease,
-             top 0.35s cubic-bezier(.23,1,.32,1),
-             width 0.3s ease;
+  display:block;
+  width:20px;height:2px;background:var(--text-mid);border-radius:4px;
+  transform-origin:center;
 }
-.burger span:nth-child(1){top:10px;}
-.burger span:nth-child(2){top:17px;}
-.burger span:nth-child(3){top:24px;width:13px;}
-.burger.open span:nth-child(1){top:17px;transform:translateX(-50%) rotate(45deg);}
-.burger.open span:nth-child(2){opacity:0;transform:translateX(-50%) scaleX(0);}
-.burger.open span:nth-child(3){top:17px;width:20px;transform:translateX(-50%) rotate(-45deg);}
+.burger span:nth-of-type(1){margin-bottom:5px;}
+.burger span:nth-of-type(2){margin-bottom:5px;}
+.burger span:nth-of-type(3){}
 
-/* ── MOBILE MENU: bottom-sheet style ── */
+/* ── MOBILE MENU: right-side slide-in panel ── */
 .mobile-menu{
   display:block;
   position:fixed;inset:0;
-  z-index:299;
+  z-index:500;
   pointer-events:none;
 }
 .mm-backdrop{
   position:absolute;inset:0;
-  background:rgba(1,14,20,0.72);
-  backdrop-filter:blur(6px);
+  background:rgba(1,10,16,0.65);
+  backdrop-filter:blur(8px) saturate(0.8);
   opacity:0;
-  transition:opacity 0.3s ease;
+  transition:opacity 0.35s ease;
 }
 .mm-sheet{
-  position:absolute;bottom:0;left:0;right:0;
-  background:linear-gradient(180deg,rgba(3,32,46,0.99) 0%,rgba(2,22,32,1) 100%);
-  border-top:0.5px solid rgba(44,165,191,0.18);
-  border-radius:20px 20px 0 0;
-  padding:0 16px 32px;
-  transform:translateY(100%);
-  transition:transform 0.42s cubic-bezier(.23,1,.32,1);
-  box-shadow:0 -8px 48px rgba(0,0,0,0.6), 0 -1px 0 rgba(44,165,191,0.12);
-  max-height:85vh;overflow-y:auto;
+  position:absolute;top:0;right:0;bottom:0;
+  width:min(300px, 82vw);
+  background:linear-gradient(160deg,rgba(4,36,52,0.99) 0%,rgba(2,22,32,1) 100%);
+  border-left:0.5px solid rgba(44,165,191,0.2);
+  padding: var(--nav-h) 18px 40px;
+  transform:translateX(100%);
+  transition:transform 0.38s cubic-bezier(.23,1,.32,1);
+  box-shadow:-12px 0 60px rgba(0,0,0,0.55), -1px 0 0 rgba(44,165,191,0.08);
+  overflow-y:auto;
+  display:flex;flex-direction:column;gap:2px;
+}
+/* Decorative accent line at top of sheet */
+.mm-sheet::before{
+  content:'';
+  position:absolute;top:0;right:0;
+  width:1px;height:40%;
+  background:linear-gradient(180deg,var(--teal2) 0%,transparent 100%);
+  opacity:0.25;
 }
 .mm-drag-handle{
-  width:36px;height:3px;
-  background:rgba(44,165,191,0.25);
+  width:3px;height:40px;
+  background:linear-gradient(180deg,rgba(44,165,191,0.4),transparent);
   border-radius:2px;
-  margin:12px auto 18px;
+  position:absolute;left:-10px;top:50%;transform:translateY(-50%);
+  display:none; /* not needed on side panel */
 }
 .mm-divider{
-  height:0.5px;background:rgba(44,165,191,0.1);
-  margin:8px 0 6px;
+  height:0.5px;
+  background:linear-gradient(90deg,transparent,rgba(44,165,191,0.15),transparent);
+  margin:10px 0 8px;
 }
 .mm-ai-btn{color:var(--teal2)!important;}
 .mm-ai-btn .ai-dot{
@@ -968,24 +976,27 @@ body > *{position:relative;z-index:1;}
 .mm-profile-btn{color:var(--muted)!important;}
 .mobile-menu.open{pointer-events:all;}
 .mobile-menu.open .mm-backdrop{opacity:1;}
-.mobile-menu.open .mm-sheet{transform:translateY(0);}
+.mobile-menu.open .mm-sheet{transform:translateX(0);}
+/* Staggered item slide-in from right */
 .mobile-menu .nav-btn{
   text-align:left;padding:13px 12px;border-radius:10px;
-  font-size:.8rem;font-family:'Syne',sans-serif;font-weight:600;
-  letter-spacing:.04em;
-  opacity:0;transform:translateY(10px);
-  transition:opacity 0.28s ease, transform 0.28s ease, background 0.2s, color 0.2s;
+  font-size:.82rem;font-family:'Syne',sans-serif;font-weight:600;
+  letter-spacing:.03em;
+  opacity:0;transform:translateX(24px);
+  transition:opacity 0.3s ease, transform 0.3s cubic-bezier(.23,1,.32,1),
+             background 0.18s, color 0.18s;
 }
-.mobile-menu.open .nav-btn{opacity:1;transform:translateY(0);}
-.mobile-menu.open .nav-btn:nth-child(2){transition-delay:.04s;}
-.mobile-menu.open .nav-btn:nth-child(3){transition-delay:.08s;}
-.mobile-menu.open .nav-btn:nth-child(4){transition-delay:.12s;}
-.mobile-menu.open .nav-btn:nth-child(5){transition-delay:.16s;}
-.mobile-menu.open .nav-btn:nth-child(6){transition-delay:.20s;}
-.mobile-menu.open .nav-btn:nth-child(7){transition-delay:.24s;}
-.mobile-menu.open .nav-btn:nth-child(8){transition-delay:.28s;}
-.mobile-menu.open .nav-btn:nth-child(9){transition-delay:.30s;}
-.mobile-menu.open .nav-btn:nth-child(10){transition-delay:.32s;}
+.mobile-menu.open .nav-btn{opacity:1;transform:translateX(0);}
+.mobile-menu.open .nav-btn:nth-child(1){transition-delay:.06s;}
+.mobile-menu.open .nav-btn:nth-child(2){transition-delay:.10s;}
+.mobile-menu.open .nav-btn:nth-child(3){transition-delay:.14s;}
+.mobile-menu.open .nav-btn:nth-child(4){transition-delay:.18s;}
+.mobile-menu.open .nav-btn:nth-child(5){transition-delay:.22s;}
+.mobile-menu.open .nav-btn:nth-child(6){transition-delay:.26s;}
+.mobile-menu.open .nav-btn:nth-child(7){transition-delay:.30s;}
+.mobile-menu.open .nav-btn:nth-child(8){transition-delay:.33s;}
+.mobile-menu.open .nav-btn:nth-child(9){transition-delay:.36s;}
+.mobile-menu.open .nav-btn:nth-child(10){transition-delay:.39s;}
 
 @media(max-width:640px){.nav-links{display:none;}.burger{display:flex;}}
  
@@ -1150,8 +1161,7 @@ body > *{position:relative;z-index:1;}
   text-align: left;
   cursor: pointer;
   transition: all 0.5s cubic-bezier(0.16,1,0.3,1);
-  /* Change border from transparent to subtle blueprint border */
-  border: 0.5px solid var(--border-mid); 
+  border: 0.5px solid var(--border-mid);
   font-family: 'Syne', sans-serif;
   font-weight: 700;
   white-space: nowrap;
@@ -1159,10 +1169,19 @@ body > *{position:relative;z-index:1;}
   text-overflow: ellipsis;
   user-select: none;
   letter-spacing: -.01em;
-  /* Add a default subtle background */
-  background: rgba(31,122,140,0.06); 
-  opacity: 1; /* Ensure normal state is fully visible */
+  background: rgba(31,122,140,0.06);
+  opacity: 1;
   border-left:1.5px solid;
+}
+/* Mobile single-day view — full width column, show full text */
+@media(max-width:640px){
+  .day-dot{
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    font-size: .78rem;
+    padding: 6px 10px;
+  }
 }
 .day-dot.done{
   opacity: 1;
@@ -2609,6 +2628,9 @@ body > *{position:relative;z-index:1;}
 .cal-main-wrap{
   background:var(--glass-surface);border:0.5px solid var(--border);border-radius:var(--r-md);
   padding:14px;backdrop-filter:blur(10px);
+  /* Mobile: allow vertical scroll to propagate freely */
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 .cal-mnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .cal-mnav button{
@@ -2626,10 +2648,12 @@ body > *{position:relative;z-index:1;}
 .cal-view-btn.active{background:rgba(31,122,140,0.18);border-color:var(--teal);color:var(--teal2);}
 .cal-dh{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;}
 .cal-dh div{text-align:center;font-size:.78rem;color:var(--muted);text-transform:uppercase;padding:4px;font-family:'JetBrains Mono',monospace;letter-spacing:.08em;font-weight:500;}
-.cal-dgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-dgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;touch-action:pan-y;}
 .cal-cell{
   min-height:76px;background:rgba(31,122,140,0.04);border:0.5px solid var(--border);
   border-radius:7px;padding:5px;cursor:pointer;transition:all 0.3s;position:relative;overflow:hidden;
+  /* Prevent touch scroll hijacking on mobile calendar */
+  touch-action: manipulation;
 }
 .cal-cell:hover{border-color:var(--border-mid);}
 .cal-cell.today-c{border-color:var(--teal);box-shadow:0 0 8px rgba(31,122,140,0.15);}
@@ -2638,19 +2662,52 @@ body > *{position:relative;z-index:1;}
 .cal-cell-d{font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--muted);margin-bottom:3px;font-weight:500;}
 .cal-cell.today-c .cal-cell-d{color:var(--teal2);}
 .cal-chip{
-  font-size:.72rem;padding:2px 5px;border-radius:4px;margin-bottom:2px;
-  font-family:'JetBrains Mono',monospace;cursor:pointer;transition:opacity 0.3s;user-select:none;
-  display:flex;align-items:center;gap:2px;position:relative;
+  font-size:.72rem;padding:3px 6px;border-radius:5px;margin-bottom:2px;
+  font-family:'JetBrains Mono',monospace;cursor:pointer;
+  transition:opacity 0.2s, transform 0.15s;
+  user-select:none;display:flex;align-items:center;gap:3px;position:relative;
+  border-left:2.5px solid;
 }
-.cal-chip:hover{opacity:.7;}
+.cal-chip:hover{opacity:.8;transform:translateX(1px);}
+.cal-chip:active{transform:scale(.97);}
 .cal-chip .chip-del{
   display:none;position:absolute;right:2px;top:50%;transform:translateY(-50%);
   font-size:.46rem;color:rgba(255,255,255,.7);cursor:pointer;background:rgba(0,0,0,.4);
   border-radius:2px;padding:1px 3px;line-height:1;
 }
 .cal-chip:hover .chip-del{display:block;}
-.evt-chip{border-left:1.5px solid;}
+@media(hover:none){.cal-chip .chip-del{display:block;}}
+.evt-chip{border-left:2.5px solid;}
  
+/* Mobile back-to-month button in daily view */
+@media(max-width:640px){
+  .dv-back-btn{
+    display:inline-flex!important;
+    align-items:center;gap:4px;
+    font-family:'JetBrains Mono',monospace;font-size:.62rem;
+    color:var(--teal2);background:rgba(31,122,140,0.1);
+    border:0.5px solid rgba(31,122,140,0.3);border-radius:6px;
+    padding:4px 10px;cursor:pointer;
+    transition:background 0.18s;
+    margin-right:auto;
+  }
+  .dv-back-btn:hover{background:rgba(31,122,140,0.2);}
+}
+
+/* Mobile calendar chips — no emoji, compact */
+@media(max-width:640px){
+  .chip-emoji{ display:none; }
+  .chip-text{ font-size:.68rem; }
+  .cal-chip{ padding:2px 5px; border-radius:4px; }
+  /* Daily view icon hidden on mobile */
+  .dv-icon{ display:none; }
+  .dv-item{ font-size:.82rem; }
+}
+/* Desktop keeps emoji */
+.chip-emoji{ flex-shrink:0; font-size:.82rem; }
+.chip-text{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dv-icon{ flex-shrink:0; font-size:.95rem; }
+
 /* ── DAILY VIEW ── */
 .daily-view{display:flex;flex-direction:column;gap:0;position:relative;}
 .dv-hour{
@@ -3413,6 +3470,378 @@ body > *{position:relative;z-index:1;}
   }
   /* Habits grid 1 col */
   .habits-grid{grid-template-columns:1fr;}
+
+  /* ═══════════════════════════════════════════════════════════════
+     MOBILE HABIT CARD — INSTRUMENT PANEL REDESIGN
+     Layout: left content column + right check button
+  ═══════════════════════════════════════════════════════════════ */
+
+  /* Card shell — tighter padding, full width */
+  .hcard{
+    padding:0;
+    border-radius:16px;
+    overflow:hidden;
+  }
+
+  /* Inner layout: left column + right check zone */
+  .hcard-header{
+    display:grid;
+    grid-template-columns:1fr 64px;
+    grid-template-rows:auto;
+    margin:0;
+    gap:0;
+    align-items:stretch;
+    min-height:72px;
+  }
+
+  /* Left zone: icon + name + sub + action links */
+  .hcard-header .htop{
+    display:contents; /* dissolve — children flow into grid */
+  }
+
+  /* Icon goes to the left column header area */
+  .hcard-header .hicon{
+    grid-column:1;
+    grid-row:1;
+    font-size:1.2rem;
+    padding:16px 0 0 16px;
+    line-height:1;
+    align-self:start;
+    margin-top:0;
+  }
+
+  /* The action buttons (MIT star, edit gear, flex toggle) — sit right of icon, same row */
+  .htop{
+    display:flex;
+    flex-direction:row;
+    align-items:flex-start;
+    gap:6px;
+    padding:14px 8px 0 10px;
+    flex-wrap:nowrap;
+    margin-left:0;
+    justify-content:flex-start;
+  }
+
+  /* Restore icon inside htop (it's the first child of htop) */
+  .htop .hicon{
+    font-size:1.25rem;
+    margin-top:1px;
+    flex-shrink:0;
+  }
+
+  /* Action micro-buttons — slightly larger tap targets */
+  .hlink.sm{
+    padding:5px 9px;
+    font-size:.62rem;
+    border-radius:7px;
+    line-height:1.2;
+  }
+
+  /* Check button — full-height right column, large circular target */
+  .hcheck{
+    grid-column:2;
+    grid-row:1 / span 2;
+    width:auto;
+    height:auto;
+    align-self:stretch;
+    justify-self:stretch;
+    border-radius:0 16px 16px 0;
+    border:none;
+    border-left:0.5px solid var(--border);
+    background:rgba(31,122,140,0.04);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-width:64px;
+    min-height:72px;
+    transition:background 0.2s, border-color 0.2s;
+    position:relative;
+    overflow:hidden;
+  }
+  .hcheck::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    background:radial-gradient(circle at 50% 50%, var(--acc-dim,rgba(31,122,140,0.15)), transparent 70%);
+    opacity:0;
+    transition:opacity 0.2s;
+  }
+  .hcard:not(.done) .hcheck:active::after{ opacity:1; }
+
+  .hcheck svg{
+    width:18px;
+    height:18px;
+    opacity:0;
+    transition:opacity 0.2s;
+  }
+  .hcard.done .hcheck svg{ opacity:1; }
+  .hcard.done .hcheck{
+    background:var(--acc, var(--teal));
+    border-left-color:transparent;
+    border-radius:0 16px 16px 0;
+    box-shadow:none;
+    animation:none;
+  }
+  /* Undone state — show a faint ring as affordance */
+  .hcard:not(.done) .hcheck::before{
+    content:'';
+    width:28px;height:28px;border-radius:50%;
+    border:2px solid var(--acc,var(--teal));
+    opacity:0.35;
+    position:absolute;
+    transition:opacity 0.2s, transform 0.2s;
+  }
+  .hcard:not(.done):active .hcheck::before{
+    opacity:0.7;
+    transform:scale(0.88);
+  }
+
+  /* MIT crown — reposition so it doesn't cover the new layout */
+  .mit-crown{
+    top:auto;left:auto;
+    position:static;
+    font-size:1rem;
+    line-height:1;
+    display:inline;
+  }
+
+  /* ── Content body below the header ── */
+  /* Name — leads the card */
+  .hname{
+    font-size:1rem;
+    font-weight:800;
+    letter-spacing:-.02em;
+    line-height:1.25;
+    margin:0;
+    padding:6px 80px 0 16px; /* right padding keeps text away from check column */
+  }
+
+  /* Sub — monospace label under name */
+  .hsub{
+    font-size:.68rem;
+    padding:3px 80px 0 16px;
+    margin:0;
+    line-height:1.4;
+  }
+
+  /* Time badge — prominent, below name */
+  .time-block-pill{
+    display:inline-flex;
+    margin:8px 0 0 16px;
+    padding:5px 11px;
+    font-size:.65rem;
+    border-radius:8px;
+    gap:5px;
+    border-width:1px;
+  }
+
+  /* ── Week pills strip — proper 7-day segment display ── */
+  .hweek-row{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:3px;
+    margin:10px 12px 0;
+    padding:0;
+  }
+
+  .hweek-pill{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:0;
+    padding:6px 2px 5px;
+    border-radius:8px;
+    min-height:44px;
+    justify-content:center;
+    border-width:1px;
+  }
+
+  .hwp-day{
+    font-size:.5rem;
+    letter-spacing:.04em;
+    opacity:.5;
+    margin-bottom:2px;
+  }
+
+  .hwp-num{
+    font-size:.82rem;
+    font-weight:800;
+    line-height:1;
+  }
+
+  /* Clock icon on pill — show only if custom, as a tiny dot instead of emoji */
+  .hwp-clock-btn{
+    font-size:.5rem;
+    opacity:0;
+    margin-top:2px;
+    padding:0;
+    line-height:1;
+    width:5px;height:5px;
+    border-radius:50%;
+    background:transparent;
+    transition:none;
+  }
+  .hwp-clock-btn.has-custom{
+    opacity:1;
+    background:var(--amber);
+    border-radius:50%;
+    width:5px;height:5px;
+    font-size:0;         /* hide ⏱ emoji, show only the amber dot */
+    padding:0;
+    box-shadow:0 0 4px var(--amber);
+  }
+
+  /* Week override badge */
+  .hweek-ovr-row{
+    margin:4px 12px 0;
+  }
+  .hweek-ovr-badge{
+    font-size:.55rem;
+    padding:4px 10px;
+  }
+
+  /* ── Streak line ── */
+  .hstreak{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin:10px 0 0 16px;
+    font-size:.68rem;
+  }
+  .hstreak .sn{
+    font-size:.88rem;
+    font-weight:800;
+  }
+
+  /* ── Note input — full bleed, no side margins ── */
+  .hcard-note-inp{
+    display:block;
+    margin:10px 12px 0;
+    width:calc(100% - 24px);
+    padding:9px 12px;
+    font-size:.78rem;
+    border-radius:10px;
+    box-sizing:border-box;
+    background:rgba(31,122,140,0.05);
+  }
+  .hcard.done .hcard-note-inp{
+    background:rgba(255,255,255,0.06);
+  }
+
+  /* ── Reps row — bigger dots, more breathing room ── */
+  .reps-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin:12px 0 0 16px;
+    flex-wrap:wrap;
+  }
+  .rep-dot{
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    border-width:1.5px;
+  }
+  .reps-label{
+    font-size:.68rem;
+    margin-left:2px;
+  }
+
+  /* ── Timer — contained block with clear sections ── */
+  .timer-row{
+    margin:12px 12px 0;
+    background:rgba(31,122,140,0.05);
+    border:0.5px solid var(--border);
+    border-radius:10px;
+    padding:10px 12px;
+  }
+  .hcard.done .timer-row{
+    background:rgba(255,255,255,0.05);
+    border-color:rgba(255,255,255,0.10);
+  }
+  .timer-bar-wrap{
+    height:3px;
+    margin-bottom:10px;
+    border-radius:99px;
+  }
+  .timer-controls{
+    display:flex;
+    align-items:center;
+    gap:0;
+    flex-wrap:nowrap;
+  }
+  .timer-display{
+    font-size:.88rem;
+    font-weight:700;
+    min-width:54px;
+    flex-shrink:0;
+  }
+  .timer-target{
+    font-size:.65rem;
+    flex:1;
+  }
+  /* Timer buttons — right-aligned, larger tap targets */
+  .tbtn{
+    padding:6px 12px;
+    font-size:.65rem;
+    border-radius:8px;
+    margin-left:5px;
+    flex-shrink:0;
+    min-width:36px;
+    text-align:center;
+  }
+
+  /* ── Links — larger, properly spaced pill buttons ── */
+  .hlinks{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin:10px 12px 0;
+  }
+  .hlink:not(.sm){
+    padding:7px 13px;
+    font-size:.65rem;
+    border-radius:8px;
+    line-height:1.2;
+  }
+
+  /* ── Reading block ── */
+  .reading-block{
+    margin:10px 12px 0;
+    border-radius:10px;
+    padding:12px;
+  }
+  .reading-title{ font-size:.82rem; }
+  .reading-author{ font-size:.62rem; }
+  .reading-prog-label{ font-size:.6rem; }
+
+  /* ── Card bottom spacing ── */
+  .hcard > *:last-child{
+    margin-bottom:16px;
+  }
+  /* ensure hcard-header never has bottom margin from last-child rule */
+  .hcard-header{
+    margin-bottom:0 !important;
+  }
+
+  /* not-today ribbon */
+  .not-today-ribbon{
+    display:inline-block;
+    margin:6px 0 0 16px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:.52rem;
+    color:var(--muted);
+    background:var(--s2);
+    border-radius:4px;
+    padding:2px 7px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+  }
+  .not-sched-tag{
+    margin:6px 0 0 16px;
+  }
+
+
   /* Week nav wrap */
   .week-nav{gap:6px;}
   /* Todos */
@@ -3438,6 +3867,10 @@ body > *{position:relative;z-index:1;}
   .dtp-pop{left:8px!important;right:8px;width:auto!important;min-width:0!important;}
   /* Nav sync in burger area — show as regular menu item */
   .nav-sync-btn{display:none!important;}
+  /* On mobile: hide the profile button — it lives inside burger menu */
+  #navProfileBtn{display:none!important;}
+  /* Hide AI plan btn from nav when burger menu is open (it's in the sheet) */
+  .burger-open #navAiPlanBtn{display:none;}
 }
 @media(max-width:380px){
   .stats-row{grid-template-columns:repeat(2,1fr);}
@@ -4676,7 +5109,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 .settings-backdrop {
   display: none;
   position: fixed; inset: 0;
-  z-index: 299;
+  z-index: 199;
+  pointer-events: none;
 }
 .settings-backdrop.open { display: block; }
 
@@ -4956,8 +5390,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     <span class="nav-profile-caret">▾</span>
   </div>
   <button class="burger" id="burgerBtn" aria-label="Menu">
-    <span></span><span></span><span></span>
-  </button>
+    <span></span><span></span><span></span></button>
 </nav>
 <div class="mobile-menu" id="mobileMenu">
   <div class="mm-backdrop" id="mmBackdrop"></div>
@@ -5422,6 +5855,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
         </div>
         <div id="calDayView" style="display:none;">
           <div class="day-picker-nav">
+            <button id="dvBackToMonth" class="dv-back-btn" title="Back to month" style="display:none;">&#8592; Month</button>
             <button id="dvPrev">&#8592;</button>
             <span class="dpl" id="dvLabel"></span>
             <button id="dvNext">&#8594;</button>
@@ -6871,7 +7305,7 @@ function renderWeekGrid(){
   
   dot.className = 'day-dot ' + (done ? 'done' : 'undone');
   
-  const shortName = h.name.length > 9 ? h.name.slice(0, 8) + '…' : h.name;
+  const shortName = h.name; // full name — CSS text-overflow handles clipping
   
   // ELITE SYMBOL LOGIC: 
   // Undone shows a technical bracket [ ], Done shows a high-fidelity solid block █ or check
@@ -6923,7 +7357,7 @@ function renderWeekGrid(){
       const c=COLORS[ev.color]||COLORS.muted;
       const chip=document.createElement('div');chip.className='day-dot done evt-chip-static';
       chip.style.cssText=`background:${c.bg};border-left:3px solid ${c.hex};color:${c.hex};padding-left:5px;cursor:pointer;`;
-      const shortEvt = ev.title.length > 9 ? ev.title.slice(0,8)+'…' : ev.title;
+      const shortEvt = ev.title; // full title — CSS text-overflow handles clipping
       chip.textContent=ev.icon+' '+shortEvt+(ev.sh!==undefined?' '+fmtT(ev.sh,ev.sm):'');
       chip.title=ev.title+' — click to edit';
       chip.addEventListener('click', e => { e.stopPropagation(); openEventModal(key, ev.id); });
@@ -8375,10 +8809,11 @@ function renderCalGrid(){
       const c=COLORS[h.color]||COLORS.muted;const done=isDone(key,h.id);
       const timeStr=h.startHour!==undefined?' · '+fmtT(h.startHour,h.startMin||0):'';
       const chip=document.createElement('div');chip.className='cal-chip';
-      chip.style.background=done?c.bg:'rgba(255,255,255,.04)';
-      chip.style.color=done?c.hex:'var(--muted)';
-      chip.style.border=`1px solid ${done?c.bd:'transparent'}`;
-      chip.innerHTML=`<span>${h.icon} ${h.name}${timeStr}</span><span class="chip-del" data-dk="${key}" data-hid="${h.id}" title="Remove from day">✕</span>`;
+      chip.style.background=done?c.bg:c.hex + '18';
+      chip.style.color=done?c.hex:c.hex+'aa';
+      chip.style.borderLeftColor=done?c.hex:c.hex+'66';
+      chip.style.opacity=done?'1':'0.75';
+      chip.innerHTML=`<span class="chip-emoji">${h.icon}</span><span class="chip-text">${h.name}${timeStr}</span><span class="chip-del" data-dk="${key}" data-hid="${h.id}" title="Remove from day">✕</span>`;
       chip.querySelector(':not(.chip-del)').addEventListener('click',e=>{e.stopPropagation();toggleDone(key,h.id);renderCalGrid();renderWeekGrid();render();});
       chip.querySelector('.chip-del').addEventListener('click',e=>{
         e.stopPropagation();
@@ -8402,11 +8837,12 @@ function renderCalGrid(){
       habitsThisDay.forEach(h=>{
         const c=COLORS[h.color]||COLORS.muted;const done=isDone(key,h.id);
         const chip=document.createElement('div');chip.className='cal-chip';
-        chip.style.background=done?c.bg:'rgba(255,255,255,.04)';
-        chip.style.color=done?c.hex:'var(--muted)';
-        chip.style.border=`1px solid ${done?c.bd:'transparent'}`;
+        chip.style.background=done?c.bg:c.hex + '18';
+        chip.style.color=done?c.hex:c.hex+'aa';
+        chip.style.borderLeftColor=done?c.hex:c.hex+'66';
+        chip.style.opacity=done?'1':'0.75';
         const timeStr=h.startHour!==undefined?' · '+fmtT(h.startHour,h.startMin||0):'';
-        chip.innerHTML=`<span>${h.icon} ${h.name}${timeStr}</span><span class="chip-del" data-dk="${key}" data-hid="${h.id}" title="Remove from day">✕</span>`;
+        chip.innerHTML=`<span class="chip-emoji">${h.icon}</span><span class="chip-text">${h.name}${timeStr}</span><span class="chip-del" data-dk="${key}" data-hid="${h.id}" title="Remove from day">✕</span>`;
         chip.querySelector(':not(.chip-del)').addEventListener('click',e=>{e.stopPropagation();toggleDone(key,h.id);renderCalGrid();renderWeekGrid();render();});
         chip.querySelector('.chip-del').addEventListener('click',e=>{
           e.stopPropagation();
@@ -8429,7 +8865,7 @@ function renderCalGrid(){
       const c=COLORS[ev.color]||COLORS.muted;
       const chip=document.createElement('div');chip.className='cal-chip evt-chip';
       chip.style.background=c.bg;chip.style.color=c.hex;chip.style.borderLeft=`2px solid ${c.hex}`;
-      chip.innerHTML=`<span>${ev.icon} ${ev.title}${ev.sh!==undefined?' '+fmtT(ev.sh,ev.sm||0):''}</span><span class="chip-del" title="Delete event">✕</span>`;
+      chip.innerHTML=`<span class="chip-emoji">${ev.icon}</span><span class="chip-text">${ev.title}${ev.sh!==undefined?' '+fmtT(ev.sh,ev.sm||0):''}</span><span class="chip-del" title="Delete event">✕</span>`;
       chip.querySelector(':not(.chip-del)').addEventListener('click',e=>{e.stopPropagation();openEventModal(key,ev.id);});
       chip.querySelector('.chip-del').addEventListener('click',e=>{
         e.stopPropagation();
@@ -8449,7 +8885,45 @@ function renderCalGrid(){
       if(!D._calOvr[key].includes(dragHid))D._calOvr[key].push(dragHid);
       sd();renderCalGrid();renderWeekGrid();showToast(`Added to ${key}`);
     });
-    cell.addEventListener('click',()=>{calSelDate=key;renderCalDayDetail(key);renderCalHabitsList();});
+    cell.addEventListener('click',()=>{
+      calSelDate=key;
+      if(window.innerWidth<=640){
+        // Mobile: jump straight to day view for the tapped date
+        dvD2=fk(key);
+        calViewMode2='day';
+        document.getElementById('calMonthView').style.display='none';
+        document.getElementById('calDayView').style.display='';
+        document.getElementById('cvMonth').classList.remove('active');
+        document.getElementById('cvDay').classList.add('active');
+        renderDailyView();
+        _syncIcsRow();
+        // Scroll to the hourly grid (first timed row at 6:00) rather than the habits list top
+        setTimeout(()=>{
+          const firstHr = document.querySelector('#dailyView .dv-hour[data-hr="6"]');
+          if(firstHr){
+            firstHr.scrollIntoView({behavior:'smooth', block:'start'});
+          } else {
+            // fallback: scroll the page to the calendar daily view
+            const dvWrap = document.getElementById('calDayView');
+            if(dvWrap) dvWrap.scrollIntoView({behavior:'smooth', block:'start'});
+          }
+        }, 120);
+      } else {
+        // Desktop: also switch to day view for the clicked date
+        dvD2=fk(key);
+        calViewMode2='day';
+        document.getElementById('calMonthView').style.display='none';
+        document.getElementById('calDayView').style.display='';
+        document.getElementById('cvMonth').classList.remove('active');
+        document.getElementById('cvDay').classList.add('active');
+        renderDailyView();
+        _syncIcsRow();
+        setTimeout(()=>{
+          const firstHr = document.querySelector('#dailyView .dv-hour[data-hr="6"]');
+          if(firstHr) firstHr.scrollIntoView({behavior:'smooth', block:'start'});
+        }, 120);
+      }
+    });
     cell.addEventListener('dblclick',e=>{e.stopPropagation();openEventModal(key,null);});
     grid.appendChild(cell);
   }
@@ -9266,8 +9740,8 @@ function renderDailyView() {
       const mit = isMIT(key, h.id);
       const item = document.createElement('div');
       item.className = 'dv-item';
-      item.style.cssText = `background:${done ? c.bg : 'rgba(255,255,255,.04)'};color:${done ? c.hex : 'var(--muted)'};border-left:3px solid ${done ? c.hex : 'rgba(255,255,255,.08)'};`;
-      item.innerHTML = `${mit ? '<span class="dv-mit-star">⭐</span>' : ''}<span style="flex-shrink:0;font-size:.9rem">${h.icon}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.name}${h.sub ? '<span style="opacity:.45;font-size:.6rem;margin-left:5px;font-weight:400;">' + h.sub + '</span>' : ''}</span><span class="chip-del">✕</span>`;
+      item.style.cssText = `background:${done ? c.bg : c.hex + '18'};color:${done ? c.hex : c.hex+'aa'};border-left:3px solid ${done ? c.hex : c.hex+'55'};opacity:${done?'1':'0.8'};`;
+      item.innerHTML = `${mit ? '<span class="dv-mit-star">⭐</span>' : ''}<span class="dv-icon">${h.icon}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.name}${h.sub ? '<span style="opacity:.45;font-size:.6rem;margin-left:5px;font-weight:400;">' + h.sub + '</span>' : ''}</span><span class="chip-del">✕</span>`;
       item.addEventListener('click', e => { if (!e.target.classList.contains('chip-del')) { toggleDone(key, h.id); renderDailyView(); renderWeekGrid(); } });
       item.querySelector('.chip-del').addEventListener('click', e => {
         e.stopPropagation();
@@ -9456,14 +9930,14 @@ function buildDvItem(x, dvD) {
     const spanH = isSpan ? (durMins - 4) : null;
     item.className = 'dv-item' + (isSpan ? ' dv-span' : '');
     if (spanH) item.style.height = spanH + 'px';
-    item.style.cssText += `background:${done ? c.bg : 'rgba(255,255,255,.05)'};color:${done ? c.hex : 'var(--muted)'};border-left:3px solid ${done ? c.hex : 'rgba(255,255,255,.08)'};` + (spanH ? `height:${spanH}px;` : '');
+    item.style.cssText += `background:${done ? c.bg : c.hex + '18'};color:${done ? c.hex : c.hex+'aa'};border-left:3px solid ${done ? c.hex : c.hex+'55'};opacity:${done?'1':'0.82'};` + (spanH ? `height:${spanH}px;` : '');
     item.draggable = true;
     if (isSpan) {
       item.innerHTML = `
         <div class="dv-span-row">
           <span class="dv-drag-handle" title="Drag to reschedule">⠿⠿</span>
           ${mit ? '<span class="dv-mit-star">⭐</span>' : ''}
-          <span style="flex-shrink:0;font-size:1.1rem">${h.icon}</span>
+          <span class="dv-icon">${h.icon}</span>
           <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.name}</span>
           <button class="dv-edit-btn" title="Edit habit">✎</button>
           <span class="chip-del">✕</span>
@@ -9473,7 +9947,7 @@ function buildDvItem(x, dvD) {
       item.innerHTML = `
         <span class="dv-drag-handle" title="Drag to reschedule">⠿⠿</span>
         ${mit ? '<span class="dv-mit-star">⭐</span>' : ''}
-        <span style="flex-shrink:0;font-size:.95rem">${h.icon}</span>
+        <span class="dv-icon">${h.icon}</span>
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.name}${h.sub ? '<span style="opacity:.4;font-size:.6rem;margin-left:5px;font-weight:400;">' + h.sub + '</span>' : ''}</span>
         <span class="dv-time-badge">${timeStr}</span>
         <button class="dv-edit-btn" title="Edit habit">✎</button>
@@ -9508,7 +9982,7 @@ function buildDvItem(x, dvD) {
       item.innerHTML = `
         <div class="dv-span-row">
           <span class="dv-drag-handle" title="Drag to reschedule">⠿⠿</span>
-          <span style="flex-shrink:0;font-size:1.1rem">${ev.icon}</span>
+          <span class="dv-icon">${ev.icon}</span>
           <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ev.title}</span>
           <button class="dv-edit-btn" title="Edit event">✎</button>
           <span class="chip-del">✕</span>
@@ -9517,7 +9991,7 @@ function buildDvItem(x, dvD) {
     } else {
       item.innerHTML = `
         <span class="dv-drag-handle" title="Drag to reschedule">⠿⠿</span>
-        <span style="flex-shrink:0;font-size:.95rem">${ev.icon}</span>
+        <span class="dv-icon">${ev.icon}</span>
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ev.title}</span>
         <span class="dv-time-badge">${timeStr}</span>
         <button class="dv-edit-btn" title="Edit event">✎</button>
@@ -9541,6 +10015,16 @@ function buildDvItem(x, dvD) {
   }
   return item;
 }
+// Back-to-month button (mobile only)
+document.getElementById('dvBackToMonth').addEventListener('click',()=>{
+  calViewMode2='month';
+  document.getElementById('calMonthView').style.display='';
+  document.getElementById('calDayView').style.display='none';
+  document.getElementById('cvMonth').classList.add('active');
+  document.getElementById('cvDay').classList.remove('active');
+  renderCalGrid();
+  _syncIcsRow();
+});
 document.getElementById('dvPrev').addEventListener('click',()=>{dvD2=aD(dvD2,-1);renderDailyView();});
 document.getElementById('dvNext').addEventListener('click',()=>{dvD2=aD(dvD2,1);renderDailyView();});
 document.getElementById('dvToday').addEventListener('click',()=>{dvD2=new Date(TODAY);renderDailyView();});
@@ -10237,7 +10721,15 @@ if(!window._beastInit) {
 // ═══════════════════════════════════════════════════════════════════════
 // NAV
 // ═══════════════════════════════════════════════════════════════════════
+let _lastPage = 'dashboard'; // tracks last successfully visited page
+
 function switchPage(page){
+  _lastPage = page;
+  // Close any floating overlays so they never block the target page
+  const sp = document.getElementById('settingsPanel');
+  if(sp && sp.classList.contains('open') && typeof window.closeSettings === 'function') window.closeSettings();
+  const aip = document.getElementById('aiPlannerOverlay');
+  if(aip && aip.classList.contains('open')) document.getElementById('aipClose')?.click();
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id==='page-'+page));
   if(page==='calendar'){renderCalHabitsList();renderCalGrid();dvD2=new Date(TODAY);renderDailyView();}
@@ -10245,7 +10737,7 @@ function switchPage(page){
   if(page==='todos'){renderTodos();}
   if(page==='beast'){renderBeastGrid();}
   if(page==='quiz'){quizOnPageSwitch();}
-  document.getElementById('mobileMenu').classList.remove('open');
+  if(typeof window.closeMenu === 'function') window.closeMenu(); else document.getElementById('mobileMenu').classList.remove('open');
 }
 document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>switchPage(btn.dataset.page)));
 (function(){
@@ -10255,24 +10747,25 @@ document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',
 
   function openMenu(){
     menu.classList.add('open');
-    burger.classList.add('open');
+    document.body.classList.add('burger-open');
     document.body.style.overflow = 'hidden';
   }
-  function closeMenu(){
+  // Expose globally so switchPage and any other caller can reliably close the menu
+  window.closeMenu = function(){
     menu.classList.remove('open');
-    burger.classList.remove('open');
+    document.body.classList.remove('burger-open');
     document.body.style.overflow = '';
-  }
+  };
 
   burger.addEventListener('click', ()=>{
-    if(menu.classList.contains('open')) closeMenu(); else openMenu();
+    if(menu.classList.contains('open')) window.closeMenu(); else openMenu();
   });
-  backdrop.addEventListener('click', closeMenu);
+  backdrop.addEventListener('click', window.closeMenu);
 
   // Mobile AI Plan button
   const mAiBtn = document.getElementById('mobileAiPlanBtn');
   if(mAiBtn) mAiBtn.addEventListener('click', ()=>{
-    closeMenu();
+    window.closeMenu();
     const aiBtn = document.getElementById('navAiPlanBtn');
     if(aiBtn) aiBtn.click();
   });
@@ -10280,7 +10773,7 @@ document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',
   // Mobile Profile/Settings button
   const mProfBtn = document.getElementById('mobileProfileBtn');
   if(mProfBtn) mProfBtn.addEventListener('click', ()=>{
-    closeMenu();
+    window.closeMenu();
     const profBtn = document.getElementById('navProfileBtn');
     if(profBtn) profBtn.click();
   });
@@ -10545,18 +11038,26 @@ async function _applyDataPack(raw){
     profileBtn.classList.add('open');
   }
 
-  function closeSettings(){
+  // Expose globally so burger button and other callers can close settings
+  window.closeSettings = function(){
     panel.classList.remove('open');
     backdrop.classList.remove('open');
     profileBtn.classList.remove('open');
-  }
+    // Ensure a page is always visible after closing settings
+    const anyActive = document.querySelector('.page.active');
+    if(!anyActive) switchPage(_lastPage);
+    // Always clear any stale scroll lock
+    document.body.style.overflow = '';
+  };
+
+  // Keep local alias for internal use
+  function closeSettings(){ window.closeSettings(); }
 
   profileBtn.addEventListener('click', e=>{
     e.stopPropagation();
     if(panel.classList.contains('open')) closeSettings();
     else openSettings();
   });
-  backdrop.addEventListener('click', closeSettings);
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSettings(); });
 
   // mobileSyncBtn removed from menu — sync is now via Settings & Account
@@ -11314,13 +11815,14 @@ _initAuth();
   function closePlanner(){
     $id('aiPlannerOverlay').classList.remove('open');
     _pendingSchedule=null;
+    // Always clear stale scroll lock and ensure a page is visible
+    document.body.style.overflow = '';
+    const anyActive = document.querySelector('.page.active');
+    if(!anyActive) switchPage(_lastPage);
   }
 
   $id('navAiPlanBtn').addEventListener('click', openPlanner);
   $id('aipClose').addEventListener('click', closePlanner);
-  $id('aiPlannerOverlay').addEventListener('click', e=>{
-    if(e.target===$id('aiPlannerOverlay')) closePlanner();
-  });
 
   // ── Action button dispatcher ───────────────────────────────────────
   $id('aipActionBtn').addEventListener('click',()=>{
