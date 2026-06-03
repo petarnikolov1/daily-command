@@ -5806,6 +5806,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 const SUPABASE_URL  = 'https://rxydxfdihguufheucyfl.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4eWR4ZmRpaGd1dWZoZXVjeWZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzOTMzNzYsImV4cCI6MjA5NTk2OTM3Nn0.s_4NCKBsR6ijKdGuJa6lu7_oWg8cFCKU1lnkM8saJnY'; // starts with eyJ…
 
+
+
 // ── Init Supabase client ──────────────────────────────────────────────
 const _sbConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY';
 const _sb = _sbConfigured
@@ -5837,6 +5839,7 @@ async function sd(){
   if(!_sbUserId || !_sb) return;
   clearTimeout(_sdDebounce);
   _sdDebounce = setTimeout(async ()=>{
+    _lastWriteAt = Date.now();
     try{
       const { error } = await _sb.from('user_data').upsert({
         user_id: _sbUserId,
@@ -5849,6 +5852,10 @@ async function sd(){
 }
 
 // ── Immediate (non-debounced) save — used after import ──────────────
+// Tracks the last time THIS tab wrote to Supabase.
+// The realtime handler ignores payloads that arrive within 3s of our own write.
+let _lastWriteAt = 0;
+
 async function _sdImmediate(){
   clearTimeout(_sdDebounce);
   if(_localMode){
@@ -5856,6 +5863,7 @@ async function _sdImmediate(){
     return;
   }
   if(!_sbUserId || !_sb) return;
+  _lastWriteAt = Date.now();
   try{
     const { error } = await _sb.from('user_data').upsert({
       user_id: _sbUserId,
@@ -5898,7 +5906,12 @@ function _subscribeRealtime(){
       table: 'user_data',
       filter: `user_id=eq.${_sbUserId}`
     }, payload => {
-      // Another device saved — merge into local state
+      // Ignore events caused by this tab's own writes (echo suppression).
+      // Supabase realtime delivers your own UPDATEs back to you —
+      // we suppress any event that arrives within 3 seconds of our last write.
+      if(Date.now() - _lastWriteAt < 3000) return;
+
+      // Genuine update from another device — merge and re-render
       if(payload.new?.data){
         D = payload.new.data;
         const _ri=(k,v)=>{if(D[k]===undefined)D[k]=v;};
