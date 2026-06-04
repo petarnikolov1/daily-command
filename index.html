@@ -6016,8 +6016,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
       <div class="gcal-status" id="gcalStatus"></div>
 
       <div id="gcalIphoneHint" style="display:none;margin-top:12px;padding:10px 12px;background:rgba(31,122,140,0.07);border:0.5px solid var(--teal);border-radius:var(--r-sm);">
-        <div style="font-size:.68rem;color:var(--teal2);font-family:'Syne',sans-serif;font-weight:700;margin-bottom:4px;">📱 Subscribe on iPhone (once only)</div>
-        <div style="font-size:.62rem;color:var(--muted);font-family:'JetBrains Mono',monospace;line-height:1.5;">1. Open <strong style="color:var(--text);">Calendar.app</strong> on iPhone<br>2. Tap <strong style="color:var(--text);">Calendars</strong> → <strong style="color:var(--text);">Add Calendar → Add Subscription Calendar</strong><br>3. Paste the <strong style="color:var(--text);">iCal URL</strong> from the screenshot you shared<br>After that, every sync automatically appears on your phone.</div>
+        <div style="font-size:.68rem;color:var(--teal2);font-family:'Syne',sans-serif;font-weight:700;margin-bottom:4px;">✅ Sync complete — events are in Google Calendar</div>
+        <div style="font-size:.62rem;color:var(--muted);font-family:'JetBrains Mono',monospace;line-height:1.5;">Your habits &amp; events were pushed directly to your primary Google Calendar. They'll appear on your iPhone, iPad, and all devices automatically — no extra steps needed.</div>
       </div>
     </div>
 
@@ -11870,7 +11870,7 @@ async function _applyDataPack(raw){
       setStatus(msg, pushed > 0 ? 'var(--green)' : 'var(--amber)');
       showToast(`📅 ${pushed} events synced to Google Calendar`);
 
-      // Show the iPhone subscription hint
+      // Show success hint
       const hint = document.getElementById('gcalIphoneHint');
       if(hint) hint.style.display = 'block';
 
