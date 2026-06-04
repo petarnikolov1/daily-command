@@ -10595,7 +10595,7 @@ function _buildIcsDayLines(d, reminderMinuteOfDay){
 
 // Shared: wrap lines array in VCALENDAR and trigger download
 function _downloadIcs(lines, filename){
-  const header=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Daily Command//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Daily Command','X-WR-TIMEZONE:Europe/Copenhagen'];
+  const header=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Daily Command//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Daily Command','X-WR-TIMEZONE:Europe/Sofia'];
   const all=[...header,...lines,'END:VCALENDAR'].filter(l=>l!=='');
   const blob=new Blob([all.join('\r\n')],{type:'text/calendar;charset=utf-8'});
   const url=URL.createObjectURL(blob);
@@ -10606,7 +10606,7 @@ function _downloadIcs(lines, filename){
 
 // Build ICS string without downloading (used for QR / mobile export)
 function _buildIcsString(lines){
-  const header=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Daily Command//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Daily Command','X-WR-TIMEZONE:Europe/Copenhagen'];
+  const header=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Daily Command//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Daily Command','X-WR-TIMEZONE:Europe/Sofia'];
   const all=[...header,...lines,'END:VCALENDAR'].filter(l=>l!=='');
   return all.join('\r\n');
 }
@@ -11741,23 +11741,27 @@ async function _applyDataPack(raw){
   // ── Build Google Calendar event object from ICS VEVENT lines ─────
   function icsDtToRfc(dtStr){
     // dtStr like "20250604T083000" or "20250604" (date-only)
+    // After stripping non-digits "20250604T083000" → "20250604083000" (14 chars)
+    // Date occupies indices 0-7, time starts at index 8 (not 9 — the 'T' is gone)
     const d = dtStr.replace(/[^\d]/g,'');
     if(d.length === 8){
       return d.substring(0,4)+'-'+d.substring(4,6)+'-'+d.substring(6,8);
     }
     return d.substring(0,4)+'-'+d.substring(4,6)+'-'+d.substring(6,8)+
-           'T'+d.substring(9,11)+':'+d.substring(11,13)+':'+d.substring(13,15);
+           'T'+d.substring(8,10)+':'+d.substring(10,12)+':'+d.substring(12,14);
   }
 
   function parseVevents(icsLines){
     const events = [];
     let ev = null;
+    let inAlarm = false;
     for(const raw of icsLines){
       const line = raw.trim();
-      if(line === 'BEGIN:VEVENT'){ ev = {}; continue; }
-      if(line === 'END:VEVENT'  ){ if(ev) events.push(ev); ev = null; continue; }
-      if(line === 'BEGIN:VALARM' || line === 'END:VALARM') continue;
-      if(!ev) continue;
+      if(line === 'BEGIN:VEVENT'){ ev = {}; inAlarm = false; continue; }
+      if(line === 'END:VEVENT'  ){ if(ev) events.push(ev); ev = null; inAlarm = false; continue; }
+      if(line === 'BEGIN:VALARM'){ inAlarm = true;  continue; }
+      if(line === 'END:VALARM'  ){ inAlarm = false; continue; }
+      if(!ev || inAlarm) continue; // skip lines inside VALARM blocks
       const colon = line.indexOf(':');
       if(colon < 0) continue;
       const key = line.substring(0, colon).split(';')[0];
@@ -11775,7 +11779,7 @@ async function _applyDataPack(raw){
       end   = { date: icsDtToRfc(ev['DTEND']  ||ev['DTEND;VALUE=DATE']  ||'') };
     } else {
       // Include timezone
-      const tz = 'Europe/Copenhagen';
+      const tz = 'Europe/Sofia';
       start = { dateTime: icsDtToRfc(ev['DTSTART']||''), timeZone: tz };
       end   = { dateTime: icsDtToRfc(ev['DTEND']||''),   timeZone: tz };
     }
@@ -11840,8 +11844,23 @@ async function _applyDataPack(raw){
         setProgress(0); _syncing = false; if(btn) btn.disabled = false; return;
       }
 
-      // Use the primary calendar
-      const calendarId = 'primary';
+      // Resolve the true writable primary calendar.
+      // Using the bare string 'primary' can silently route to the read-only
+      // Birthdays calendar on some Google accounts. We fetch the calendar list,
+      // find the entry flagged as primary, and use its actual calendar ID instead.
+      setStatus('Resolving calendar…', 'var(--teal2)');
+      let calendarId = 'primary'; // safe fallback
+      try {
+        const calListResp = await fetch(
+          'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',
+          { headers: { 'Authorization': 'Bearer ' + token } }
+        );
+        if(calListResp.ok){
+          const calList = await calListResp.json();
+          const primaryCal = (calList.items||[]).find(c => c.primary === true && c.accessRole === 'owner');
+          if(primaryCal) calendarId = primaryCal.id;
+        }
+      } catch(e){ /* non-fatal: fall back to 'primary' */ }
 
       setStatus(`Pushing ${vevents.length} events…`, 'var(--teal2)');
 
