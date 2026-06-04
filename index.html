@@ -5975,13 +5975,35 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     <!-- Google Calendar Sync -->
     <div class="settings-section" id="gcalSection">
       <div class="settings-section-label">📅 Google Calendar Sync</div>
-      <div class="settings-section-desc">Push all your future scheduled habits &amp; events directly to Google Calendar. Your iPhone subscribes once and stays updated automatically.</div>
+      <div class="settings-section-desc">Push your scheduled habits &amp; events to Google Calendar. One-time setup, then sync with one tap.</div>
+
+      <!-- ── Setup Guide (collapsible) ───────────────────────────── -->
+      <details id="gcalGuideDetails" style="margin-bottom:12px;">
+        <summary style="cursor:pointer;font-size:.65rem;font-family:'JetBrains Mono',monospace;color:var(--teal2);padding:8px 10px;background:rgba(31,122,140,0.07);border:0.5px solid var(--teal);border-radius:var(--r-sm);list-style:none;display:flex;align-items:center;gap:6px;user-select:none;">
+          <span style="font-size:.8rem;">⚙</span> Setup Guide — Get your OAuth Client ID
+          <span id="gcalGuideArrow" style="margin-left:auto;transition:transform 0.2s;">▸</span>
+        </summary>
+        <div style="margin-top:8px;padding:12px 14px;background:rgba(2,35,48,0.6);border:0.5px solid var(--border-mid);border-radius:var(--r-sm);font-family:'JetBrains Mono',monospace;font-size:.62rem;line-height:1.75;color:var(--text-mid);">
+          <div style="color:var(--amber2);font-family:'Syne',sans-serif;font-weight:700;font-size:.68rem;margin-bottom:8px;letter-spacing:.04em;">ONE-TIME SETUP (~5 MIN)</div>
+
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">1.</span><span>Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener" style="color:var(--teal2);">console.cloud.google.com</a> and sign in with your Google account.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">2.</span><span>Click <strong style="color:var(--text);">Select a project</strong> → <strong style="color:var(--text);">New Project</strong>. Name it anything (e.g. "Daily Command") and click <strong style="color:var(--text);">Create</strong>.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">3.</span><span>In the left sidebar go to <strong style="color:var(--text);">APIs &amp; Services → Library</strong>. Search for <strong style="color:var(--text);">Google Calendar API</strong> and click <strong style="color:var(--text);">Enable</strong>.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">4.</span><span>Go to <strong style="color:var(--text);">APIs &amp; Services → OAuth consent screen</strong>. Choose <strong style="color:var(--text);">External</strong>, fill in App name and your email, click <strong style="color:var(--text);">Save and Continue</strong> through all steps.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">5.</span><span>Go to <strong style="color:var(--text);">APIs &amp; Services → <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--teal2);">Credentials</a></strong> → <strong style="color:var(--text);">+ Create Credentials → OAuth client ID</strong>.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">6.</span><span>Application type: <strong style="color:var(--text);">Web application</strong>. Under <strong style="color:var(--text);">Authorised JavaScript origins</strong> add your app's URL (e.g. <code style="color:var(--amber2);">https://yourusername.github.io</code> or <code style="color:var(--amber2);">http://localhost</code> for local testing). Click <strong style="color:var(--text);">Create</strong>.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">7.</span><span>Copy the <strong style="color:var(--text);">Client ID</strong> (ends in <code style="color:var(--amber2);">.apps.googleusercontent.com</code>) and paste it below.</span></div>
+          </div>
+
+          <div style="margin-top:10px;padding:8px 10px;background:rgba(232,163,56,0.07);border:0.5px solid rgba(232,163,56,0.25);border-radius:6px;color:var(--amber2);">
+            ⚠ If you get a <strong>"redirect_uri_mismatch"</strong> error when signing in, go back to step 6 and make sure the Authorised JavaScript origin exactly matches the URL in your browser's address bar (no trailing slash).
+          </div>
+        </div>
+      </details>
 
       <div class="settings-key-wrap" id="gcalClientIdWrap">
-        <input type="text" class="settings-key-input" id="settingsGcalClientId" placeholder="Your OAuth Client ID  (…apps.googleusercontent.com)" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="settings-key-hint">
-        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" class="gcal-hint-link">console.cloud.google.com</a> → Create project → Enable Calendar API → OAuth 2.0 Client ID (Web, origin = your GitHub Pages URL). <a href="#" id="gcalSetupGuide" style="color:var(--teal2);">Setup guide ↗</a>
+        <input type="text" class="settings-key-input" id="settingsGcalClientId" placeholder="Paste Client ID  (…apps.googleusercontent.com)" autocomplete="off" spellcheck="false">
       </div>
       <button class="settings-save-key-btn" id="settingsSaveGcalClientIdBtn">Save Client ID</button>
       <div class="settings-key-status" id="gcalClientIdStatus"></div>
@@ -11758,10 +11780,8 @@ async function _applyDataPack(raw){
       end   = { dateTime: icsDtToRfc(ev['DTEND']||''),   timeZone: tz };
     }
     const obj = {
-      summary: (ev['SUMMARY']||'').replace(/\n/g,'
-').replace(/\,/g,',').replace(/\;/g,';'),
-      description: (ev['DESCRIPTION']||'').replace(/\n/g,'
-').replace(/\,/g,','),
+      summary: (ev['SUMMARY']||'').replace(/\n/g,'\n').replace(/\,/g,',').replace(/\;/g,';'),
+      description: (ev['DESCRIPTION']||'').replace(/\n/g,'\n').replace(/\,/g,','),
       start, end,
       extendedProperties: { private: { source: 'daily_command', uid: ev['UID']||'' } },
       reminders: { useDefault: false, overrides: [{ method:'popup', minutes: 10 }] }
@@ -11870,6 +11890,15 @@ async function _applyDataPack(raw){
     _gcalUpdateBtn();
     const btn = document.getElementById('gcalSyncBtn');
     if(btn) btn.addEventListener('click', syncToGcal);
+
+    // Animate guide arrow on expand/collapse
+    const guide = document.getElementById('gcalGuideDetails');
+    const arrow = document.getElementById('gcalGuideArrow');
+    if(guide && arrow){
+      guide.addEventListener('toggle', ()=>{
+        arrow.style.transform = guide.open ? 'rotate(90deg)' : 'rotate(0deg)';
+      });
+    }
   });
 
 })();
