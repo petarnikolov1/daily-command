@@ -10556,36 +10556,30 @@ function _buildIcsDayLines(d, reminderMinuteOfDay){
         'END:VEVENT'
       );
     } else {
-      // ── Unscheduled habit → all-day event + timed VALARM for iPhone Reminders ──
-      // iOS Calendar and Reminders both honor VALARM on all-day events.
-      // We emit an all-day event (DATE format) so it shows up as a full-day block
-      // that the user can mark complete, PLUS a VALARM that fires at the chosen
-      // reminder time so it appears as a tappable notification on iPhone.
+      // ── Unscheduled habit → true all-day event with offset VALARM ──────────
+      // On iPhone, all-day calendar events synced from Google Calendar appear in
+      // the "All-Day" row and fire a notification at whatever time the VALARM
+      // triggers. DTSTART of an all-day event is midnight of that date, so
+      // TRIGGER:PT540M fires at 9 AM (540 min after midnight).
+      //
+      // Using VALUE=DATE is what makes iOS render it in the all-day strip — a
+      // timed DTSTART creates a regular calendar block instead.
       const rmMin = (reminderMinuteOfDay !== undefined && reminderMinuteOfDay >= 0)
-        ? reminderMinuteOfDay : 540; // default 9:00 AM
-      // VALARM trigger: negative offset from midnight (start of day) to fire at rmMin
-      // e.g. 9 AM = 540 min → trigger is "540 min after midnight" = -PT0S on a 9 AM all-day
-      // Better: use a DTSTART of exactly the reminder time for reliable iOS firing
-      const rmH = Math.floor(rmMin/60), rmM = rmMin%60;
-      const dtRem    = `${ds}T${String(rmH).padStart(2,'0')}${String(rmM).padStart(2,'0')}00`;
-      const remEndMin = rmH * 60 + rmM + 1;
-      const dtRemEnd = `${ds}T${String(Math.floor(remEndMin/60)%24).padStart(2,'0')}${String(remEndMin%60).padStart(2,'0')}00`;
+        ? reminderMinuteOfDay : 540;
+      const triggerStr = 'TRIGGER:PT' + rmMin + 'M';
       lines.push(
         'BEGIN:VEVENT',
-        `UID:${h.id}-${ds}-reminder@dc`,
-        // Use a timed (1-min) event at reminder time — this is what makes iOS fire
-        // the notification at exactly the right moment and lets you "mark as done"
-        `DTSTART:${dtRem}`,
-        `DTEND:${dtRemEnd}`,
-        `SUMMARY:${esc((done?'✓ ':'')+h.icon+' '+h.name)}`,
-        h.sub?`DESCRIPTION:Habit reminder — ${esc(h.sub)}`:`DESCRIPTION:Habit reminder`,
-        done?'STATUS:COMPLETED':'STATUS:CONFIRMED',
-        // TRANSP:TRANSPARENT so the 1-min slot doesn't block the calendar visually
+        'UID:' + h.id + '-' + ds + '-reminder@dc',
+        'DTSTART;VALUE=DATE:' + ds,
+        'DTEND;VALUE=DATE:' + de,
+        'SUMMARY:' + esc((done ? '✓ ' : '') + h.icon + ' ' + h.name),
+        h.sub ? 'DESCRIPTION:' + esc(h.sub) : 'DESCRIPTION:',
+        done ? 'STATUS:COMPLETED' : 'STATUS:CONFIRMED',
         'TRANSP:TRANSPARENT',
         'BEGIN:VALARM',
         'ACTION:DISPLAY',
-        `DESCRIPTION:⏰ ${esc(h.name)}`,
-        'TRIGGER:PT0S',
+        'DESCRIPTION:' + esc(h.icon + ' ' + h.name),
+        triggerStr,
         'END:VALARM',
         'END:VEVENT'
       );
@@ -11793,37 +11787,61 @@ async function _applyDataPack(raw){
       if(line === 'END:VEVENT'  ){ if(ev) events.push(ev); ev = null; inAlarm = false; continue; }
       if(line === 'BEGIN:VALARM'){ inAlarm = true;  continue; }
       if(line === 'END:VALARM'  ){ inAlarm = false; continue; }
-      if(!ev || inAlarm) continue; // skip lines inside VALARM blocks
+      if(!ev) continue;
       const colon = line.indexOf(':');
       if(colon < 0) continue;
       const key = line.substring(0, colon).split(';')[0];
       const val = line.substring(colon + 1);
+      if(inAlarm){
+        // Capture TRIGGER from inside VALARM so veventToGcal can use it
+        if(key === 'TRIGGER') ev['TRIGGER'] = val;
+        continue;
+      }
       ev[key] = val;
     }
     return events;
   }
 
   function veventToGcal(ev){
-    const isDateOnly = ev['DTSTART'] && !ev['DTSTART'].includes('T');
+    const isDateOnly = (ev['DTSTART;VALUE=DATE'] || (!ev['DTSTART'] || !ev['DTSTART'].includes('T')));
     let start, end;
     if(isDateOnly){
-      start = { date: icsDtToRfc(ev['DTSTART']||ev['DTSTART;VALUE=DATE']||'') };
-      end   = { date: icsDtToRfc(ev['DTEND']  ||ev['DTEND;VALUE=DATE']  ||'') };
+      const ds = ev['DTSTART;VALUE=DATE'] || ev['DTSTART'] || '';
+      const de = ev['DTEND;VALUE=DATE']   || ev['DTEND']   || '';
+      start = { date: icsDtToRfc(ds) };
+      end   = { date: icsDtToRfc(de) };
     } else {
       const tz = 'Europe/Sofia';
       start = { dateTime: icsDtToRfc(ev['DTSTART']||''), timeZone: tz };
       end   = { dateTime: icsDtToRfc(ev['DTEND']||''),   timeZone: tz };
     }
-    // Reminder events (1-min transparent): popup fires right at start time (0 min before)
-    // Scheduled habit/activity events: popup 10 min before
+
     const isReminder = (ev['UID']||'').endsWith('-reminder@dc');
+
+    // For all-day reminder events, read the VALARM trigger (e.g. "PT540M")
+    // and use that many minutes as the Google popup offset from the event start.
+    // This means iOS Calendar fires the notification at exactly the right time.
+    let popupMinutes = 10; // default: 10 min before for scheduled events
+    if(isReminder){
+      const trigger = ev['TRIGGER'] || '';
+      const triggerMatch = trigger.match(/PT(\d+)M/);
+      popupMinutes = triggerMatch ? parseInt(triggerMatch[1]) : 0;
+      // Google's popup "minutes" for all-day events counts back from midnight,
+      // but we want it to fire AT rmMin past midnight. Google Calendar's API
+      // for all-day reminders uses minutes before the start of the day (midnight),
+      // so a negative value fires after midnight. We express it as a negative offset:
+      // e.g. to fire at 9 AM (540 min after midnight), use minutes: -540
+      // Google docs: "minutes" can be negative for all-day events (fires after midnight).
+      popupMinutes = -popupMinutes;
+    }
+
     const obj = {
-      summary: (ev['SUMMARY']||'').replace(/\n/g,'\n').replace(/\,/g,',').replace(/\;/g,';'),
-      description: (ev['DESCRIPTION']||'').replace(/\n/g,'\n').replace(/\,/g,','),
+      summary: (ev['SUMMARY']||'').replace(/\\n/g,'\n').replace(/\\,/g,',').replace(/\\;/g,';'),
+      description: (ev['DESCRIPTION']||'').replace(/\\n/g,'\n').replace(/\\,/g,','),
       start, end,
       transparency: isReminder ? 'transparent' : 'opaque',
       extendedProperties: { private: { source: 'daily_command', uid: ev['UID']||'' } },
-      reminders: { useDefault: false, overrides: [{ method:'popup', minutes: isReminder ? 0 : 10 }] }
+      reminders: { useDefault: false, overrides: [{ method:'popup', minutes: popupMinutes }] }
     };
     if(ev['STATUS'] === 'COMPLETED') obj.colorId = '2';
     return obj;
