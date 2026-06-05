@@ -10556,29 +10556,35 @@ function _buildIcsDayLines(d, reminderMinuteOfDay){
         'END:VEVENT'
       );
     } else {
-      // ── Unscheduled habit → VALARM reminder (all-day event with alarm) ──
+      // ── Unscheduled habit → all-day event + timed VALARM for iPhone Reminders ──
+      // iOS Calendar and Reminders both honor VALARM on all-day events.
+      // We emit an all-day event (DATE format) so it shows up as a full-day block
+      // that the user can mark complete, PLUS a VALARM that fires at the chosen
+      // reminder time so it appears as a tappable notification on iPhone.
       const rmMin = (reminderMinuteOfDay !== undefined && reminderMinuteOfDay >= 0)
         ? reminderMinuteOfDay : 540; // default 9:00 AM
+      // VALARM trigger: negative offset from midnight (start of day) to fire at rmMin
+      // e.g. 9 AM = 540 min → trigger is "540 min after midnight" = -PT0S on a 9 AM all-day
+      // Better: use a DTSTART of exactly the reminder time for reliable iOS firing
       const rmH = Math.floor(rmMin/60), rmM = rmMin%60;
-      // Push as a 1-minute timed event at the reminder time.
-      // Google Calendar API doesn't support "fire at specific time" for all-day events,
-      // but a short timed event with a popup=0 reminder fires the notification at exactly
-      // the right moment on iPhone. We use TRANSPARENT so it doesn't block the time slot visually.
-      const dtRem = `${ds}T${String(rmH).padStart(2,'0')}${String(rmM).padStart(2,'0')}00`;
-      const remEndMin = rmH * 60 + rmM + 1; // 1-minute duration
+      const dtRem    = `${ds}T${String(rmH).padStart(2,'0')}${String(rmM).padStart(2,'0')}00`;
+      const remEndMin = rmH * 60 + rmM + 1;
       const dtRemEnd = `${ds}T${String(Math.floor(remEndMin/60)%24).padStart(2,'0')}${String(remEndMin%60).padStart(2,'0')}00`;
       lines.push(
         'BEGIN:VEVENT',
         `UID:${h.id}-${ds}-reminder@dc`,
+        // Use a timed (1-min) event at reminder time — this is what makes iOS fire
+        // the notification at exactly the right moment and lets you "mark as done"
         `DTSTART:${dtRem}`,
         `DTEND:${dtRemEnd}`,
-        `SUMMARY:⏰ ${esc(h.icon+' '+h.name)}`,
-        h.sub?`DESCRIPTION:${esc(h.sub)}`:`DESCRIPTION:`,
+        `SUMMARY:${esc((done?'✓ ':'')+h.icon+' '+h.name)}`,
+        h.sub?`DESCRIPTION:Habit reminder — ${esc(h.sub)}`:`DESCRIPTION:Habit reminder`,
         done?'STATUS:COMPLETED':'STATUS:CONFIRMED',
+        // TRANSP:TRANSPARENT so the 1-min slot doesn't block the calendar visually
         'TRANSP:TRANSPARENT',
         'BEGIN:VALARM',
         'ACTION:DISPLAY',
-        `DESCRIPTION:${esc(h.name)}`,
+        `DESCRIPTION:⏰ ${esc(h.name)}`,
         'TRIGGER:PT0S',
         'END:VALARM',
         'END:VEVENT'
@@ -11823,8 +11829,8 @@ async function _applyDataPack(raw){
     return obj;
   }
 
-  // ── Push a single event to Google Calendar ───────────────────────
-  async function pushEvent(token, calendarId, gcalEv){
+  // ── Push a single event to Google Calendar (with retry + backoff) ──
+  async function pushEvent(token, calendarId, gcalEv, attempt=0){
     const resp = await fetch(
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
       { method:'POST',
@@ -11832,6 +11838,13 @@ async function _applyDataPack(raw){
         body: JSON.stringify(gcalEv)
       }
     );
+    // Rate limit (403 "Rate Limit Exceeded" or 429 "Too Many Requests") → backoff & retry
+    if((resp.status === 429 || resp.status === 403) && attempt < 5){
+      const backoff = Math.min(2000 * Math.pow(2, attempt) + Math.random()*500, 30000);
+      console.log(`[GCal] ${resp.status} on attempt ${attempt+1}, retrying in ${Math.round(backoff)}ms…`);
+      await new Promise(r => setTimeout(r, backoff));
+      return pushEvent(token, calendarId, gcalEv, attempt + 1);
+    }
     if(!resp.ok){
       const err = await resp.json().catch(()=>({}));
       throw new Error(err.error?.message || resp.statusText);
@@ -11846,10 +11859,13 @@ async function _applyDataPack(raw){
     const lines = [];
     const today = new Date();
     const maxDays = Math.max(HABIT_DAYS, ACTIVITY_DAYS);
+    // Read reminder time from the shared selector (default 9 AM = 540 min)
+    const reminderSel = document.getElementById('mexReminderTime');
+    const reminderMinuteOfDay = reminderSel ? parseInt(reminderSel.value) : 540;
     for(let i = 0; i < maxDays; i++){
       const d = new Date(today);
       d.setDate(today.getDate() + i);
-      const dayLines = _buildIcsDayLines(d);
+      const dayLines = _buildIcsDayLines(d, i < HABIT_DAYS ? reminderMinuteOfDay : undefined);
       // Parse what _buildIcsDayLines returned and tag each VEVENT
       // with X-DC-TYPE:habit or X-DC-TYPE:activity based on UID pattern.
       // Habit UIDs look like "abc123-20250610@dc"
@@ -11930,18 +11946,23 @@ async function _applyDataPack(raw){
       pageToken = data.nextPageToken || null;
     } while(pageToken);
 
-    // Delete in small batches
-    const BATCH = 5;
-    for(let i = 0; i < toDelete.length; i += BATCH){
-      await Promise.allSettled(
-        toDelete.slice(i, i + BATCH).map(evId =>
-          fetch('https://www.googleapis.com/calendar/v3/calendars/'
-            + encodeURIComponent(calendarId) + '/events/' + encodeURIComponent(evId),
-            { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } }
-          )
-        )
-      );
-      if(i + BATCH < toDelete.length) await new Promise(r => setTimeout(r, 80));
+    // Delete sequentially to avoid rate limits
+    for(let i = 0; i < toDelete.length; i++){
+      const evId = toDelete[i];
+      for(let attempt = 0; attempt < 4; attempt++){
+        const dr = await fetch('https://www.googleapis.com/calendar/v3/calendars/'
+          + encodeURIComponent(calendarId) + '/events/' + encodeURIComponent(evId),
+          { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } }
+        );
+        if(dr.status === 429 || dr.status === 403){
+          const backoff = Math.min(1500 * Math.pow(2, attempt) + Math.random()*300, 15000);
+          await new Promise(r => setTimeout(r, backoff));
+          continue;
+        }
+        break; // success or non-rate-limit error
+      }
+      // Throttle: 150ms between deletions (~6/sec, well under quota)
+      if(i < toDelete.length - 1) await new Promise(r => setTimeout(r, 150));
     }
     return toDelete.length;
   }
@@ -11980,33 +12001,35 @@ async function _applyDataPack(raw){
       }
       setProgress(35);
 
-      // ── Step 4: push events ──────────────────────────────────────
+      // ── Step 4: push events sequentially (avoids Google rate limits) ───
       setStatus(`Pushing ${vevents.length} events…`, 'var(--teal2)');
       let pushed = 0, failed = 0;
-      const failLog = []; // collect real error messages
-      const BATCH = 5;
-      for(let i = 0; i < vevents.length; i += BATCH){
-        const batch = vevents.slice(i, i + BATCH);
-        await Promise.allSettled(batch.map(ev => {
-          const gcalEv = veventToGcal(ev);
-          gcalEv.extendedProperties = gcalEv.extendedProperties || { private: {} };
-          gcalEv.extendedProperties.private.source  = 'daily_command';
-          gcalEv.extendedProperties.private.dcType  = ev['X-DC-TYPE'] || 'habit';
-          gcalEv.extendedProperties.private.uid     = ev['UID'] || '';
-          return pushEvent(token, calendarId, gcalEv)
-            .then(()=>{ pushed++; })
-            .catch((err)=>{
-              failed++;
-              const startStr = JSON.stringify(gcalEv.start);
-              const msg = `${gcalEv.summary} [${startStr}]: ${err.message}`;
-              failLog.push(msg);
-              console.warn('[GCal fail]', msg);
-            });
-        }));
-        const pct = 35 + Math.round(((i + BATCH) / vevents.length) * 60);
-        setProgress(Math.min(95, pct));
-        setStatus(`Pushed ${pushed}/${vevents.length}…`, 'var(--teal2)');
-        if(i + BATCH < vevents.length) await new Promise(r => setTimeout(r, 120));
+      const failLog = [];
+      for(let i = 0; i < vevents.length; i++){
+        const ev = vevents[i];
+        const gcalEv = veventToGcal(ev);
+        gcalEv.extendedProperties = gcalEv.extendedProperties || { private: {} };
+        gcalEv.extendedProperties.private.source  = 'daily_command';
+        gcalEv.extendedProperties.private.dcType  = ev['X-DC-TYPE'] || 'habit';
+        gcalEv.extendedProperties.private.uid     = ev['UID'] || '';
+        try {
+          await pushEvent(token, calendarId, gcalEv);
+          pushed++;
+        } catch(err){
+          failed++;
+          const startStr = JSON.stringify(gcalEv.start);
+          const msg = `${gcalEv.summary} [${startStr}]: ${err.message}`;
+          failLog.push(msg);
+          console.warn('[GCal fail]', gcalEv.summary, err.message);
+        }
+        // Progress update every 5 events
+        if(i % 5 === 0 || i === vevents.length - 1){
+          const pct = 35 + Math.round(((i + 1) / vevents.length) * 60);
+          setProgress(Math.min(95, pct));
+          setStatus(`Pushed ${pushed}/${vevents.length}…`, 'var(--teal2)');
+        }
+        // Throttle: ~8 req/sec → 125ms gap. Keeps well under Google's 10 req/sec quota.
+        if(i < vevents.length - 1) await new Promise(r => setTimeout(r, 125));
       }
 
       setProgress(100);
