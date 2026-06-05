@@ -10560,23 +10560,25 @@ function _buildIcsDayLines(d, reminderMinuteOfDay){
       const rmMin = (reminderMinuteOfDay !== undefined && reminderMinuteOfDay >= 0)
         ? reminderMinuteOfDay : 540; // default 9:00 AM
       const rmH = Math.floor(rmMin/60), rmM = rmMin%60;
-      // Timed VEVENT for the reminder — give it 15 min duration (Google rejects start===end)
-      const dtRem=`${ds}T${String(rmH).padStart(2,'0')}${String(rmM).padStart(2,'0')}00`;
-      const remEndTotalMin = rmH*60 + rmM + 15;
-      const remEndH = Math.floor(remEndTotalMin/60) % 24;
-      const remEndM = remEndTotalMin % 60;
-      const dtRemEnd=`${ds}T${String(remEndH).padStart(2,'0')}${String(remEndM).padStart(2,'0')}00`;
+      // Push as a 1-minute timed event at the reminder time.
+      // Google Calendar API doesn't support "fire at specific time" for all-day events,
+      // but a short timed event with a popup=0 reminder fires the notification at exactly
+      // the right moment on iPhone. We use TRANSPARENT so it doesn't block the time slot visually.
+      const dtRem = `${ds}T${String(rmH).padStart(2,'0')}${String(rmM).padStart(2,'0')}00`;
+      const remEndMin = rmH * 60 + rmM + 1; // 1-minute duration
+      const dtRemEnd = `${ds}T${String(Math.floor(remEndMin/60)%24).padStart(2,'0')}${String(remEndMin%60).padStart(2,'0')}00`;
       lines.push(
         'BEGIN:VEVENT',
         `UID:${h.id}-${ds}-reminder@dc`,
         `DTSTART:${dtRem}`,
         `DTEND:${dtRemEnd}`,
-        `SUMMARY:⏰ ${esc(h.icon+' '+h.name)} (reminder)`,
-        h.sub?`DESCRIPTION:Habit reminder: ${esc(h.sub)}`:`DESCRIPTION:Daily habit reminder`,
-        done?'STATUS:COMPLETED':'STATUS:TENTATIVE',
+        `SUMMARY:⏰ ${esc(h.icon+' '+h.name)}`,
+        h.sub?`DESCRIPTION:${esc(h.sub)}`:`DESCRIPTION:`,
+        done?'STATUS:COMPLETED':'STATUS:CONFIRMED',
+        'TRANSP:TRANSPARENT',
         'BEGIN:VALARM',
         'ACTION:DISPLAY',
-        `DESCRIPTION:Don't forget: ${esc(h.name)}`,
+        `DESCRIPTION:${esc(h.name)}`,
         'TRIGGER:PT0S',
         'END:VALARM',
         'END:VEVENT'
@@ -11802,19 +11804,22 @@ async function _applyDataPack(raw){
       start = { date: icsDtToRfc(ev['DTSTART']||ev['DTSTART;VALUE=DATE']||'') };
       end   = { date: icsDtToRfc(ev['DTEND']  ||ev['DTEND;VALUE=DATE']  ||'') };
     } else {
-      // Include timezone
       const tz = 'Europe/Sofia';
       start = { dateTime: icsDtToRfc(ev['DTSTART']||''), timeZone: tz };
       end   = { dateTime: icsDtToRfc(ev['DTEND']||''),   timeZone: tz };
     }
+    // Reminder events (1-min transparent): popup fires right at start time (0 min before)
+    // Scheduled habit/activity events: popup 10 min before
+    const isReminder = (ev['UID']||'').endsWith('-reminder@dc');
     const obj = {
       summary: (ev['SUMMARY']||'').replace(/\n/g,'\n').replace(/\,/g,',').replace(/\;/g,';'),
       description: (ev['DESCRIPTION']||'').replace(/\n/g,'\n').replace(/\,/g,','),
       start, end,
+      transparency: isReminder ? 'transparent' : 'opaque',
       extendedProperties: { private: { source: 'daily_command', uid: ev['UID']||'' } },
-      reminders: { useDefault: false, overrides: [{ method:'popup', minutes: 10 }] }
+      reminders: { useDefault: false, overrides: [{ method:'popup', minutes: isReminder ? 0 : 10 }] }
     };
-    if(ev['STATUS'] === 'COMPLETED') obj.colorId = '2'; // sage green = done
+    if(ev['STATUS'] === 'COMPLETED') obj.colorId = '2';
     return obj;
   }
 
@@ -11913,7 +11918,7 @@ async function _applyDataPack(raw){
     do {
       let url = 'https://www.googleapis.com/calendar/v3/calendars/'
         + encodeURIComponent(calendarId)
-        + '/events?maxResults=250'
+        + '/events?maxResults=250&singleEvents=true'
         + '&timeMin=' + windowStart.toISOString()
         + '&timeMax=' + windowEnd.toISOString()
         + '&privateExtendedProperty=source%3Ddaily_command';
