@@ -5495,6 +5495,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 }
 .gcal-sync-btn:hover{background:linear-gradient(135deg,rgba(31,122,140,0.32),rgba(31,122,140,0.16));box-shadow:0 0 16px rgba(31,122,140,0.25);}
 .gcal-sync-btn:disabled{opacity:0.45;cursor:not-allowed;}
+@keyframes gcalPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.75);}}
 .gcal-sync-btn .gcal-icon{font-size:1.1rem;}
 .gcal-status{font-size:.68rem;font-family:'JetBrains Mono',monospace;margin-top:8px;min-height:1.2em;transition:color 0.2s;}
 .gcal-progress{width:100%;height:2px;background:var(--border);border-radius:1px;margin-top:8px;overflow:hidden;display:none;}
@@ -6014,6 +6015,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
         <span id="gcalSyncLabel">Sign in with Google to Sync</span>
       </button>
       <div class="gcal-status" id="gcalStatus"></div>
+      <label id="gcalAutoSyncRow" style="display:none;align-items:center;gap:8px;margin-top:10px;cursor:pointer;user-select:none;font-size:.68rem;color:var(--muted);font-family:'JetBrains Mono',monospace;">
+        <input type="checkbox" id="gcalAutoSyncToggle" style="accent-color:var(--teal2);width:14px;height:14px;cursor:pointer;">
+        Auto-sync on every schedule change
+        <span id="gcalAutoSyncDot" style="display:none;width:7px;height:7px;border-radius:50%;background:var(--teal2);animation:gcalPulse 1.4s ease-in-out infinite;"></span>
+      </label>
+      <div id="gcalAutoSyncStatus" style="font-size:.62rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:4px;min-height:14px;"></div>
 
       <div id="gcalIphoneHint" style="display:none;margin-top:12px;padding:10px 12px;background:rgba(31,122,140,0.07);border:0.5px solid var(--teal);border-radius:var(--r-sm);">
         <div style="font-size:.68rem;color:var(--teal2);font-family:'Syne',sans-serif;font-weight:700;margin-bottom:4px;">✅ Sync complete — events are in Google Calendar</div>
@@ -6710,6 +6717,7 @@ async function sd(){
     clearTimeout(_sdDebounce);
     _sdDebounce = setTimeout(()=>{
       try{ localStorage.setItem(_localKey(), JSON.stringify(D)); }catch(e){ console.error('Local save error:',e); }
+      if(window._scheduleAutoSync) window._scheduleAutoSync();
     }, 400);
     return;
   }
@@ -6725,6 +6733,7 @@ async function sd(){
       }, { onConflict: 'user_id' });
       if(error) console.error('Save error:', error.message);
     } catch(e){ console.error('Save exception:', e); }
+    if(window._scheduleAutoSync) window._scheduleAutoSync();
   }, 800);
 }
 
@@ -11922,7 +11931,7 @@ async function _applyDataPack(raw){
   }
 
   // ── Main sync ─────────────────────────────────────────────────────
-  async function syncToGcal(){
+  async function syncToGcal(silent=false){
     if(_syncing) return;
     _syncing = true;
     const btn = document.getElementById('gcalSyncBtn');
@@ -11983,10 +11992,10 @@ async function _applyDataPack(raw){
         ? `✓ ${pushed} synced to Daily Command, ${failed} failed.`
         : `✓ ${pushed} events in Daily Command calendar! (habits: ${HABIT_DAYS} days, activities: full schedule)`;
       setStatus(msg, pushed > 0 ? 'var(--green)' : 'var(--amber)');
-      showToast(`📅 ${pushed} events → Daily Command calendar`);
+      if(!silent) showToast(`📅 ${pushed} events → Daily Command calendar`);
 
       const hint = document.getElementById('gcalIphoneHint');
-      if(hint) hint.style.display = 'block';
+      if(!silent && hint) hint.style.display = 'block';
       setTimeout(()=>setProgress(0), 2000);
 
     } catch(err){
@@ -11998,11 +12007,68 @@ async function _applyDataPack(raw){
     if(btn){ btn.disabled = false; _gcalUpdateBtn(); }
   }
 
+  // ── Auto-sync state ──────────────────────────────────────────────
+  const KEY_AUTO_SYNC = 'dcmd_gcal_auto_sync';
+  let _autoSyncTimer = null;
+
+  function isAutoSyncOn(){
+    return localStorage.getItem(KEY_AUTO_SYNC) === '1';
+  }
+
+  function setAutoSyncStatus(msg, color){
+    const el = document.getElementById('gcalAutoSyncStatus');
+    if(el){ el.textContent = msg; el.style.color = color||'var(--muted)'; }
+  }
+
+  function showAutoSyncDot(visible){
+    const dot = document.getElementById('gcalAutoSyncDot');
+    if(dot) dot.style.display = visible ? 'inline-block' : 'none';
+  }
+
+  // Called by sd() after every save — debounced so rapid edits collapse
+  window._scheduleAutoSync = function(){
+    if(!isAutoSyncOn()) return;
+    const tokenOk = _token && Date.now() < _token.expiry_ms;
+    if(!tokenOk) return; // not signed in yet
+    clearTimeout(_autoSyncTimer);
+    showAutoSyncDot(true);
+    setAutoSyncStatus('Changes detected — syncing in 5s…', 'var(--teal2)');
+    _autoSyncTimer = setTimeout(async ()=>{
+      if(!isAutoSyncOn()) return;
+      setAutoSyncStatus('Auto-syncing…', 'var(--teal2)');
+      try {
+        await syncToGcal(true); // silent=true: no toast/hint during auto-sync
+        const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        setAutoSyncStatus('Last auto-sync: ' + now, 'var(--muted)');
+      } catch(e){
+        setAutoSyncStatus('Auto-sync failed: ' + e.message, 'var(--red)');
+      }
+      showAutoSyncDot(false);
+    }, 5000); // 5s debounce so bursts of edits produce one sync
+  };
+
   // ── Wire up button ────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', ()=>{
     _gcalUpdateBtn();
     const btn = document.getElementById('gcalSyncBtn');
     if(btn) btn.addEventListener('click', syncToGcal);
+
+    // Restore auto-sync toggle state
+    const toggle = document.getElementById('gcalAutoSyncToggle');
+    const row    = document.getElementById('gcalAutoSyncRow');
+    if(toggle){
+      toggle.checked = isAutoSyncOn();
+      toggle.addEventListener('change', ()=>{
+        localStorage.setItem(KEY_AUTO_SYNC, toggle.checked ? '1' : '0');
+        if(!toggle.checked){
+          clearTimeout(_autoSyncTimer);
+          showAutoSyncDot(false);
+          setAutoSyncStatus('', '');
+        } else {
+          setAutoSyncStatus('Auto-sync enabled — will sync after each change.', 'var(--teal2)');
+        }
+      });
+    }
 
     // Animate guide arrow on expand/collapse
     const guide = document.getElementById('gcalGuideDetails');
@@ -12013,6 +12079,16 @@ async function _applyDataPack(raw){
       });
     }
   });
+
+  // Show the auto-sync row only once signed in
+  const _origGcalUpdateBtn = window._gcalUpdateBtn;
+  window._gcalUpdateBtn = function(){
+    _origGcalUpdateBtn && _origGcalUpdateBtn();
+    const row = document.getElementById('gcalAutoSyncRow');
+    if(!row) return;
+    const tokenOk = _token && Date.now() < _token.expiry_ms;
+    row.style.display = tokenOk ? 'flex' : 'none';
+  };
 
 })();
 
