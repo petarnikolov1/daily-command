@@ -6024,7 +6024,14 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 
       <div id="gcalIphoneHint" style="display:none;margin-top:12px;padding:10px 12px;background:rgba(31,122,140,0.07);border:0.5px solid var(--teal);border-radius:var(--r-sm);">
         <div style="font-size:.68rem;color:var(--teal2);font-family:'Syne',sans-serif;font-weight:700;margin-bottom:4px;">✅ Sync complete — events are in Google Calendar</div>
-        <div style="font-size:.62rem;color:var(--muted);font-family:'JetBrains Mono',monospace;line-height:1.5;">Your habits &amp; events were pushed directly to your primary Google Calendar. They'll appear on your iPhone, iPad, and all devices automatically — no extra steps needed.</div>
+        <div style="font-size:.62rem;color:var(--muted);font-family:'JetBrains Mono',monospace;line-height:1.5;">
+          Events are now in your <strong style="color:var(--text);">Daily Command</strong> calendar in Google Calendar.<br><br>
+          <span style="color:var(--amber2);font-weight:700;">📱 First time? Enable the calendar on iPhone:</span><br>
+          1. Open <strong style="color:var(--text);">Settings → Calendar → Accounts → Gmail</strong><br>
+          2. Make sure <strong style="color:var(--text);">Calendars</strong> is toggled on<br>
+          3. Open the <strong style="color:var(--text);">Calendar app</strong> → tap <strong style="color:var(--text);">Calendars</strong> (bottom) → find <strong style="color:var(--text);">Daily Command</strong> under your Google account and tick it<br><br>
+          <span style="color:var(--muted);">If using the Google Calendar app instead: tap the ☰ menu → scroll to your account → enable Daily Command.</span>
+        </div>
       </div>
     </div>
 
@@ -10553,13 +10560,17 @@ function _buildIcsDayLines(d, reminderMinuteOfDay){
       const rmMin = (reminderMinuteOfDay !== undefined && reminderMinuteOfDay >= 0)
         ? reminderMinuteOfDay : 540; // default 9:00 AM
       const rmH = Math.floor(rmMin/60), rmM = rmMin%60;
-      // Use a timed VEVENT at the reminder time with 0-duration so it shows as a reminder
+      // Timed VEVENT for the reminder — give it 15 min duration (Google rejects start===end)
       const dtRem=`${ds}T${String(rmH).padStart(2,'0')}${String(rmM).padStart(2,'0')}00`;
+      const remEndTotalMin = rmH*60 + rmM + 15;
+      const remEndH = Math.floor(remEndTotalMin/60) % 24;
+      const remEndM = remEndTotalMin % 60;
+      const dtRemEnd=`${ds}T${String(remEndH).padStart(2,'0')}${String(remEndM).padStart(2,'0')}00`;
       lines.push(
         'BEGIN:VEVENT',
         `UID:${h.id}-${ds}-reminder@dc`,
         `DTSTART:${dtRem}`,
-        `DTEND:${dtRem}`,
+        `DTEND:${dtRemEnd}`,
         `SUMMARY:⏰ ${esc(h.icon+' '+h.name)} (reminder)`,
         h.sub?`DESCRIPTION:Habit reminder: ${esc(h.sub)}`:`DESCRIPTION:Daily habit reminder`,
         done?'STATUS:COMPLETED':'STATUS:TENTATIVE',
@@ -11979,7 +11990,7 @@ async function _applyDataPack(raw){
           gcalEv.extendedProperties.private.uid     = ev['UID'] || '';
           return pushEvent(token, calendarId, gcalEv)
             .then(()=>{ pushed++; })
-            .catch(()=>{ failed++; });
+            .catch((err)=>{ failed++; console.warn('[GCal fail]', gcalEv.summary, gcalEv.start, err.message); });
         }));
         const pct = 35 + Math.round(((i + BATCH) / vevents.length) * 60);
         setProgress(Math.min(95, pct));
