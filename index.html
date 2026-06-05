@@ -11676,12 +11676,16 @@ async function _applyDataPack(raw){
 // ══════════════════════════════════════════════════════════════════
 (function(){
   const KEY_CLIENT_ID = 'dcmd_gcal_client_id';
-  const SCOPES        = 'https://www.googleapis.com/auth/calendar.events';
+  // calendar scope needed to create the Daily Command calendar if it doesn't exist
+  // calendar.events scope needed to push/delete events
+  const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
   let _token = null;   // { access_token, expiry_ms }
   let _syncing = false;
 
   // ── How many future days to sync ──────────────────────────────────
-  const FUTURE_DAYS = 90;
+  // ── Sync window constants ─────────────────────────────────────────
+  const HABIT_DAYS    = 7;   // habits: 1 week ahead only
+  const ACTIVITY_DAYS = 90;  // activities: up to 90 days (however far scheduled)
 
   // ── Helpers ───────────────────────────────────────────────────────
   function setStatus(msg, color){ 
@@ -11810,16 +11814,111 @@ async function _applyDataPack(raw){
     return resp.json();
   }
 
-  // ── Build all future event lines (90 days) ────────────────────────
+  // ── Build habit lines (7 days) and activity lines (90 days) ────────
+  // Each VEVENT gets an X-DC-TYPE property so the sync can tag events
+  // with extendedProperties for clean de-duplication on future syncs.
   function buildFutureLines(){
     const lines = [];
     const today = new Date();
-    for(let i = 0; i < FUTURE_DAYS; i++){
+    const maxDays = Math.max(HABIT_DAYS, ACTIVITY_DAYS);
+    for(let i = 0; i < maxDays; i++){
       const d = new Date(today);
       d.setDate(today.getDate() + i);
-      lines.push(..._buildIcsDayLines(d));
+      const dayLines = _buildIcsDayLines(d);
+      // Parse what _buildIcsDayLines returned and tag each VEVENT
+      // with X-DC-TYPE:habit or X-DC-TYPE:activity based on UID pattern.
+      // Habit UIDs look like "abc123-20250610@dc"
+      // Activity UIDs look like "act-uuid@dc" (no date segment)
+      let inside = false, uid = '', buf = [], isActivity = false;
+      for(const ln of dayLines){
+        if(ln === 'BEGIN:VEVENT'){ inside = true; uid = ''; buf = ['BEGIN:VEVENT']; isActivity = false; continue; }
+        if(inside && ln.startsWith('UID:')){ uid = ln.substring(4); }
+        if(inside && ln !== 'END:VEVENT'){ buf.push(ln); continue; }
+        if(ln === 'END:VEVENT' && inside){
+          // Activities have UIDs NOT matching the habit pattern (habitid-YYYYMMDD@dc)
+          isActivity = !/^.+-\d{8}@dc$/.test(uid) && !/-reminder@dc$/.test(uid);
+          const skip = !isActivity && i >= HABIT_DAYS; // skip habits beyond 7 days
+          if(!skip){
+            buf.push('X-DC-TYPE:' + (isActivity ? 'activity' : 'habit'));
+            buf.push('END:VEVENT');
+            lines.push(...buf);
+          }
+          inside = false; buf = [];
+          continue;
+        }
+        if(!inside) lines.push(ln);
+      }
     }
     return lines;
+  }
+
+  // ── Find or create the "Daily Command" calendar ─────────────────
+  async function getOrCreateDcCalendar(token){
+    const listResp = await fetch(
+      'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',
+      { headers: { 'Authorization': 'Bearer ' + token } }
+    );
+    if(!listResp.ok) throw new Error('Could not fetch calendar list');
+    const list = await listResp.json();
+    const existing = (list.items||[]).find(c =>
+      c.summary === 'Daily Command' && c.accessRole === 'owner'
+    );
+    if(existing) return existing.id;
+
+    // Create it
+    const createResp = await fetch(
+      'https://www.googleapis.com/calendar/v3/calendars',
+      { method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summary: 'Daily Command', timeZone: 'Europe/Sofia' })
+      }
+    );
+    if(!createResp.ok) throw new Error('Could not create Daily Command calendar');
+    const cal = await createResp.json();
+    return cal.id;
+  }
+
+  // ── Delete all previously synced Daily Command events (clean slate) ─
+  async function clearDcEvents(token, calendarId){
+    // We tag every pushed event with extendedProperty source=daily_command.
+    // Query for those events across a wide window and delete them all.
+    const today = new Date();
+    const windowStart = new Date(today);
+    windowStart.setDate(today.getDate() - 1); // also catch anything from yesterday
+    const windowEnd = new Date(today);
+    windowEnd.setDate(today.getDate() + ACTIVITY_DAYS + 5);
+
+    let pageToken = null;
+    const toDelete = [];
+    do {
+      let url = 'https://www.googleapis.com/calendar/v3/calendars/'
+        + encodeURIComponent(calendarId)
+        + '/events?maxResults=250'
+        + '&timeMin=' + windowStart.toISOString()
+        + '&timeMax=' + windowEnd.toISOString()
+        + '&privateExtendedProperty=source%3Ddaily_command';
+      if(pageToken) url += '&pageToken=' + pageToken;
+      const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      if(!r.ok) break;
+      const data = await r.json();
+      (data.items||[]).forEach(ev => toDelete.push(ev.id));
+      pageToken = data.nextPageToken || null;
+    } while(pageToken);
+
+    // Delete in small batches
+    const BATCH = 5;
+    for(let i = 0; i < toDelete.length; i += BATCH){
+      await Promise.allSettled(
+        toDelete.slice(i, i + BATCH).map(evId =>
+          fetch('https://www.googleapis.com/calendar/v3/calendars/'
+            + encodeURIComponent(calendarId) + '/events/' + encodeURIComponent(evId),
+            { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } }
+          )
+        )
+      );
+      if(i + BATCH < toDelete.length) await new Promise(r => setTimeout(r, 80));
+    }
+    return toDelete.length;
   }
 
   // ── Main sync ─────────────────────────────────────────────────────
@@ -11833,66 +11932,61 @@ async function _applyDataPack(raw){
 
     try {
       const token = await getToken();
-      setStatus('Building events…', 'var(--teal2)');
       setProgress(5);
 
-      const lines = buildFutureLines();
+      // ── Step 1: resolve or create "Daily Command" calendar ──────
+      setStatus('Finding Daily Command calendar…', 'var(--teal2)');
+      const calendarId = await getOrCreateDcCalendar(token);
+      setProgress(15);
+
+      // ── Step 2: remove old DC events to prevent duplicates ──────
+      setStatus('Cleaning up old events…', 'var(--teal2)');
+      const deleted = await clearDcEvents(token, calendarId);
+      setProgress(30);
+
+      // ── Step 3: build events ─────────────────────────────────────
+      setStatus('Building events…', 'var(--teal2)');
+      const lines   = buildFutureLines();
       const vevents = parseVevents(lines);
 
       if(vevents.length === 0){
-        setStatus('No scheduled habits found for the next '+FUTURE_DAYS+' days.', 'var(--muted)');
+        setStatus('No events to sync (habits: ' + HABIT_DAYS + ' days, activities: as scheduled).', 'var(--muted)');
         setProgress(0); _syncing = false; if(btn) btn.disabled = false; return;
       }
+      setProgress(35);
 
-      // Resolve the true writable primary calendar.
-      // Using the bare string 'primary' can silently route to the read-only
-      // Birthdays calendar on some Google accounts. We fetch the calendar list,
-      // find the entry flagged as primary, and use its actual calendar ID instead.
-      setStatus('Resolving calendar…', 'var(--teal2)');
-      let calendarId = 'primary'; // safe fallback
-      try {
-        const calListResp = await fetch(
-          'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50',
-          { headers: { 'Authorization': 'Bearer ' + token } }
-        );
-        if(calListResp.ok){
-          const calList = await calListResp.json();
-          const primaryCal = (calList.items||[]).find(c => c.primary === true && c.accessRole === 'owner');
-          if(primaryCal) calendarId = primaryCal.id;
-        }
-      } catch(e){ /* non-fatal: fall back to 'primary' */ }
-
+      // ── Step 4: push events ──────────────────────────────────────
       setStatus(`Pushing ${vevents.length} events…`, 'var(--teal2)');
-
       let pushed = 0, failed = 0;
-      // Push in small batches to avoid rate limits
       const BATCH = 5;
       for(let i = 0; i < vevents.length; i += BATCH){
         const batch = vevents.slice(i, i + BATCH);
         await Promise.allSettled(batch.map(ev => {
           const gcalEv = veventToGcal(ev);
+          // Tag with source so future syncs can find and delete these events
+          gcalEv.extendedProperties = gcalEv.extendedProperties || { private: {} };
+          gcalEv.extendedProperties.private.source  = 'daily_command';
+          gcalEv.extendedProperties.private.dcType  = ev['X-DC-TYPE'] || 'habit';
+          gcalEv.extendedProperties.private.uid     = ev['UID'] || '';
           return pushEvent(token, calendarId, gcalEv)
             .then(()=>{ pushed++; })
             .catch(()=>{ failed++; });
         }));
-        const pct = 5 + Math.round(((i + BATCH) / vevents.length) * 90);
+        const pct = 35 + Math.round(((i + BATCH) / vevents.length) * 60);
         setProgress(Math.min(95, pct));
         setStatus(`Pushed ${pushed}/${vevents.length}…`, 'var(--teal2)');
-        // Small delay between batches to respect rate limits
         if(i + BATCH < vevents.length) await new Promise(r => setTimeout(r, 120));
       }
 
       setProgress(100);
       const msg = failed > 0
-        ? `✓ ${pushed} events synced, ${failed} skipped (may already exist).`
-        : `✓ ${pushed} events pushed to Google Calendar!`;
+        ? `✓ ${pushed} synced to Daily Command, ${failed} failed.`
+        : `✓ ${pushed} events in Daily Command calendar! (habits: ${HABIT_DAYS} days, activities: full schedule)`;
       setStatus(msg, pushed > 0 ? 'var(--green)' : 'var(--amber)');
-      showToast(`📅 ${pushed} events synced to Google Calendar`);
+      showToast(`📅 ${pushed} events → Daily Command calendar`);
 
-      // Show success hint
       const hint = document.getElementById('gcalIphoneHint');
       if(hint) hint.style.display = 'block';
-
       setTimeout(()=>setProgress(0), 2000);
 
     } catch(err){
