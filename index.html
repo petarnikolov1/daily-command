@@ -11983,19 +11983,25 @@ async function _applyDataPack(raw){
       // ── Step 4: push events ──────────────────────────────────────
       setStatus(`Pushing ${vevents.length} events…`, 'var(--teal2)');
       let pushed = 0, failed = 0;
+      const failLog = []; // collect real error messages
       const BATCH = 5;
       for(let i = 0; i < vevents.length; i += BATCH){
         const batch = vevents.slice(i, i + BATCH);
         await Promise.allSettled(batch.map(ev => {
           const gcalEv = veventToGcal(ev);
-          // Tag with source so future syncs can find and delete these events
           gcalEv.extendedProperties = gcalEv.extendedProperties || { private: {} };
           gcalEv.extendedProperties.private.source  = 'daily_command';
           gcalEv.extendedProperties.private.dcType  = ev['X-DC-TYPE'] || 'habit';
           gcalEv.extendedProperties.private.uid     = ev['UID'] || '';
           return pushEvent(token, calendarId, gcalEv)
             .then(()=>{ pushed++; })
-            .catch((err)=>{ failed++; console.warn('[GCal fail]', gcalEv.summary, gcalEv.start, err.message); });
+            .catch((err)=>{
+              failed++;
+              const startStr = JSON.stringify(gcalEv.start);
+              const msg = `${gcalEv.summary} [${startStr}]: ${err.message}`;
+              failLog.push(msg);
+              console.warn('[GCal fail]', msg);
+            });
         }));
         const pct = 35 + Math.round(((i + BATCH) / vevents.length) * 60);
         setProgress(Math.min(95, pct));
@@ -12004,9 +12010,14 @@ async function _applyDataPack(raw){
       }
 
       setProgress(100);
-      const msg = failed > 0
-        ? `✓ ${pushed} synced to Daily Command, ${failed} failed.`
-        : `✓ ${pushed} events in Daily Command calendar! (habits: ${HABIT_DAYS} days, activities: full schedule)`;
+      // Show first few failures on screen so we can diagnose
+      let msg;
+      if(failed > 0){
+        const sample = failLog.slice(0,3).join(' | ');
+        msg = `✓ ${pushed} synced, ${failed} failed. Errors: ${sample}`;
+      } else {
+        msg = `✓ ${pushed} events in Daily Command! (habits: ${HABIT_DAYS}d, activities: full schedule)`;
+      }
       setStatus(msg, pushed > 0 ? 'var(--green)' : 'var(--amber)');
       if(!silent) showToast(`📅 ${pushed} events → Daily Command calendar`);
 
