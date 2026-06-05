@@ -11829,27 +11829,142 @@ async function _applyDataPack(raw){
     return obj;
   }
 
-  // ── Push a single event to Google Calendar (with retry + backoff) ──
-  async function pushEvent(token, calendarId, gcalEv, attempt=0){
-    const resp = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-      { method:'POST',
-        headers:{ 'Authorization':'Bearer '+token, 'Content-Type':'application/json' },
-        body: JSON.stringify(gcalEv)
+  // ── Google Batch HTTP API helper ─────────────────────────────────
+  // Sends up to 50 sub-requests in a single multipart HTTP call.
+  // Each sub-request counts as 1 quota unit, BUT the batch call itself
+  // is billed as only 1 HTTP request against the per-100s rate limiter,
+  // which is the quota we keep hitting.  Google allows max 100 per batch;
+  // we use 50 to stay conservative.
+  //
+  // Returns an array of { ok, status, body } objects, one per sub-request.
+  async function gcalBatch(token, subRequests, attempt=0){
+    const BOUNDARY = 'dc_batch_' + Date.now();
+    let body = '';
+    subRequests.forEach((req, idx) => {
+      body += `--${BOUNDARY}\r\n`;
+      body += `Content-Type: application/http\r\n`;
+      body += `Content-ID: <item-${idx}>\r\n\r\n`;
+      body += `${req.method} ${req.path} HTTP/1.1\r\n`;
+      if(req.json){
+        const jsonStr = JSON.stringify(req.json);
+        body += `Content-Type: application/json\r\n`;
+        body += `Content-Length: ${new TextEncoder().encode(jsonStr).length}\r\n\r\n`;
+        body += jsonStr + '\r\n';
+      } else {
+        body += '\r\n';
       }
-    );
-    // Rate limit (403 "Rate Limit Exceeded" or 429 "Too Many Requests") → backoff & retry
-    if((resp.status === 429 || resp.status === 403) && attempt < 5){
-      const backoff = Math.min(2000 * Math.pow(2, attempt) + Math.random()*500, 30000);
-      console.log(`[GCal] ${resp.status} on attempt ${attempt+1}, retrying in ${Math.round(backoff)}ms…`);
+    });
+    body += `--${BOUNDARY}--`;
+
+    const resp = await fetch('https://www.googleapis.com/batch/calendar/v3', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': `multipart/mixed; boundary=${BOUNDARY}`
+      },
+      body
+    });
+
+    // If the batch call itself is rate-limited, retry with backoff
+    if((resp.status === 429 || resp.status === 403) && attempt < 4){
+      const backoff = Math.min(3000 * Math.pow(2, attempt) + Math.random()*1000, 30000);
+      console.log(`[GCal batch] ${resp.status} attempt ${attempt+1}, retry in ${Math.round(backoff)}ms`);
       await new Promise(r => setTimeout(r, backoff));
-      return pushEvent(token, calendarId, gcalEv, attempt + 1);
+      return gcalBatch(token, subRequests, attempt + 1);
     }
+
     if(!resp.ok){
-      const err = await resp.json().catch(()=>({}));
-      throw new Error(err.error?.message || resp.statusText);
+      const txt = await resp.text().catch(()=>'');
+      throw new Error(`Batch request failed ${resp.status}: ${txt.substring(0,200)}`);
     }
-    return resp.json();
+
+    // Parse the multipart response
+    const respText = await resp.text();
+    const respBoundary = (resp.headers.get('content-type')||'').match(/boundary=([^\s;]+)/)?.[1];
+    if(!respBoundary) return subRequests.map(()=>({ ok: false, status: 0, body: {} }));
+
+    const parts = respText.split('--' + respBoundary).slice(1); // skip preamble
+    return parts.slice(0, subRequests.length).map(part => {
+      // Each part: headers\r\n\r\nHTTP/1.1 STATUS\r\nheaders\r\n\r\nbody
+      const innerStart = part.indexOf('\r\n\r\n');
+      if(innerStart < 0) return { ok: false, status: 0, body: {} };
+      const inner = part.substring(innerStart + 4);
+      const statusLine = inner.match(/^HTTP\/\d+\.?\d*\s+(\d+)/);
+      const status = statusLine ? parseInt(statusLine[1]) : 0;
+      const bodyStart = inner.indexOf('\r\n\r\n');
+      let bodyObj = {};
+      if(bodyStart >= 0){
+        try { bodyObj = JSON.parse(inner.substring(bodyStart + 4)); } catch(e){}
+      }
+      return { ok: status >= 200 && status < 300, status, body: bodyObj };
+    });
+  }
+
+  // ── Push events via batch API (50 per batch call) ─────────────────
+  async function pushEventsBatch(token, calendarId, gcalEvents, onProgress){
+    const BATCH_SIZE = 50;
+    let pushed = 0, failed = 0;
+    const failLog = [];
+    const calPath = `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+
+    for(let i = 0; i < gcalEvents.length; i += BATCH_SIZE){
+      const chunk = gcalEvents.slice(i, i + BATCH_SIZE);
+      const subRequests = chunk.map(ev => ({
+        method: 'POST',
+        path: calPath,
+        json: ev
+      }));
+
+      let results;
+      try {
+        results = await gcalBatch(token, subRequests);
+      } catch(err){
+        // Whole batch call failed — count all in chunk as failed
+        chunk.forEach(ev => {
+          failed++;
+          failLog.push(`${ev.summary}: ${err.message}`);
+          console.warn('[GCal batch fail]', ev.summary, err.message);
+        });
+        if(i + BATCH_SIZE < gcalEvents.length) await new Promise(r => setTimeout(r, 2000));
+        onProgress && onProgress(pushed, failed, gcalEvents.length);
+        continue;
+      }
+
+      results.forEach((res, j) => {
+        if(res.ok){
+          pushed++;
+        } else {
+          failed++;
+          const msg = res.body?.error?.message || `HTTP ${res.status}`;
+          failLog.push(`${chunk[j].summary}: ${msg}`);
+          console.warn('[GCal fail]', chunk[j].summary, msg);
+        }
+      });
+
+      onProgress && onProgress(pushed, failed, gcalEvents.length);
+      // 1 second between batch calls — generous gap, each batch call is cheap
+      if(i + BATCH_SIZE < gcalEvents.length) await new Promise(r => setTimeout(r, 1000));
+    }
+
+    return { pushed, failed, failLog };
+  }
+
+  // ── Delete events via batch API (50 per batch call) ───────────────
+  async function deleteEventsBatch(token, calendarId, eventIds){
+    const BATCH_SIZE = 50;
+    for(let i = 0; i < eventIds.length; i += BATCH_SIZE){
+      const chunk = eventIds.slice(i, i + BATCH_SIZE);
+      const subRequests = chunk.map(evId => ({
+        method: 'DELETE',
+        path: `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(evId)}`
+      }));
+      try {
+        await gcalBatch(token, subRequests);
+      } catch(e){
+        console.warn('[GCal delete batch fail]', e.message);
+      }
+      if(i + BATCH_SIZE < eventIds.length) await new Promise(r => setTimeout(r, 1000));
+    }
   }
 
   // ── Build habit lines (7 days) and activity lines (90 days) ────────
@@ -11921,11 +12036,9 @@ async function _applyDataPack(raw){
 
   // ── Delete all previously synced Daily Command events (clean slate) ─
   async function clearDcEvents(token, calendarId){
-    // We tag every pushed event with extendedProperty source=daily_command.
-    // Query for those events across a wide window and delete them all.
     const today = new Date();
     const windowStart = new Date(today);
-    windowStart.setDate(today.getDate() - 1); // also catch anything from yesterday
+    windowStart.setDate(today.getDate() - 1);
     const windowEnd = new Date(today);
     windowEnd.setDate(today.getDate() + ACTIVITY_DAYS + 5);
 
@@ -11946,23 +12059,8 @@ async function _applyDataPack(raw){
       pageToken = data.nextPageToken || null;
     } while(pageToken);
 
-    // Delete sequentially to avoid rate limits
-    for(let i = 0; i < toDelete.length; i++){
-      const evId = toDelete[i];
-      for(let attempt = 0; attempt < 4; attempt++){
-        const dr = await fetch('https://www.googleapis.com/calendar/v3/calendars/'
-          + encodeURIComponent(calendarId) + '/events/' + encodeURIComponent(evId),
-          { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } }
-        );
-        if(dr.status === 429 || dr.status === 403){
-          const backoff = Math.min(1500 * Math.pow(2, attempt) + Math.random()*300, 15000);
-          await new Promise(r => setTimeout(r, backoff));
-          continue;
-        }
-        break; // success or non-rate-limit error
-      }
-      // Throttle: 150ms between deletions (~6/sec, well under quota)
-      if(i < toDelete.length - 1) await new Promise(r => setTimeout(r, 150));
+    if(toDelete.length > 0){
+      await deleteEventsBatch(token, calendarId, toDelete);
     }
     return toDelete.length;
   }
@@ -12001,36 +12099,27 @@ async function _applyDataPack(raw){
       }
       setProgress(35);
 
-      // ── Step 4: push events sequentially (avoids Google rate limits) ───
-      setStatus(`Pushing ${vevents.length} events…`, 'var(--teal2)');
-      let pushed = 0, failed = 0;
-      const failLog = [];
-      for(let i = 0; i < vevents.length; i++){
-        const ev = vevents[i];
+      // ── Step 4: push events via batch API ───────────────────────────
+      // Google Batch API: 50 inserts per HTTP call → ~2 calls for 70 events.
+      // Each batch call counts as 1 quota unit instead of 50.
+      setStatus(`Pushing ${vevents.length} events via batch…`, 'var(--teal2)');
+      const gcalEventsToSync = vevents.map(ev => {
         const gcalEv = veventToGcal(ev);
         gcalEv.extendedProperties = gcalEv.extendedProperties || { private: {} };
-        gcalEv.extendedProperties.private.source  = 'daily_command';
-        gcalEv.extendedProperties.private.dcType  = ev['X-DC-TYPE'] || 'habit';
-        gcalEv.extendedProperties.private.uid     = ev['UID'] || '';
-        try {
-          await pushEvent(token, calendarId, gcalEv);
-          pushed++;
-        } catch(err){
-          failed++;
-          const startStr = JSON.stringify(gcalEv.start);
-          const msg = `${gcalEv.summary} [${startStr}]: ${err.message}`;
-          failLog.push(msg);
-          console.warn('[GCal fail]', gcalEv.summary, err.message);
-        }
-        // Progress update every 5 events
-        if(i % 5 === 0 || i === vevents.length - 1){
-          const pct = 35 + Math.round(((i + 1) / vevents.length) * 60);
+        gcalEv.extendedProperties.private.source = 'daily_command';
+        gcalEv.extendedProperties.private.dcType = ev['X-DC-TYPE'] || 'habit';
+        gcalEv.extendedProperties.private.uid    = ev['UID'] || '';
+        return gcalEv;
+      });
+
+      const { pushed, failed, failLog } = await pushEventsBatch(
+        token, calendarId, gcalEventsToSync,
+        (p, f, total) => {
+          const pct = 35 + Math.round(((p + f) / total) * 60);
           setProgress(Math.min(95, pct));
-          setStatus(`Pushed ${pushed}/${vevents.length}…`, 'var(--teal2)');
+          setStatus(`Pushed ${p}/${total}…`, 'var(--teal2)');
         }
-        // Throttle: ~8 req/sec → 125ms gap. Keeps well under Google's 10 req/sec quota.
-        if(i < vevents.length - 1) await new Promise(r => setTimeout(r, 125));
-      }
+      );
 
       setProgress(100);
       // Show first few failures on screen so we can diagnose
