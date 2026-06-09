@@ -5557,20 +5557,19 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
   font-family:'JetBrains Mono',monospace;font-size:.56rem;
   color:var(--muted2);text-transform:uppercase;letter-spacing:.14em;flex-shrink:0;
 }
-/* Auto-sync badge in nav */
+/* Auto-sync dot inside profile button */
 .gcal-nav-badge{
-  display:none;align-items:center;gap:5px;
-  padding:3px 9px 3px 7px;border-radius:999px;
-  background:rgba(46,196,165,0.1);border:0.5px solid rgba(46,196,165,0.3);
-  font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--green);
-  cursor:default;flex-shrink:0;
-  animation:gcalNavFadeIn .4s cubic-bezier(0.16,1,0.3,1) both;
+  display:none;align-items:center;
+  pointer-events:none;
 }
-@keyframes gcalNavFadeIn{from{opacity:0;transform:scale(.9);}to{opacity:1;transform:scale(1);}}
-.gcal-nav-badge .gcal-nav-dot{
-  width:5px;height:5px;border-radius:50%;background:var(--green);
-  box-shadow:0 0 5px var(--green);
+.gcal-nav-badge.visible{ display:inline-flex; }
+.gcal-nav-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 6px rgba(46,196,165,0.9);
   animation:gcalPulse 2s ease-in-out infinite;
+  display:block;
+  margin-left:4px;
 }
 .gcal-syncing-toast{
   position:fixed;bottom:calc(var(--nav-h) + 16px);right:16px;
@@ -5769,10 +5768,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     <button class="nav-btn" data-page="quiz">Quiz</button>
   </div>
   <button class="nav-ai-btn" id="navAiPlanBtn" title="Plan today with AI"><span class="ai-dot"></span>AI Plan</button>
-  <div class="gcal-nav-badge" id="gcalNavBadge" title="Google Calendar auto-sync active"><span class="gcal-nav-dot"></span>Cal Sync</div>
   <div class="nav-profile-btn" id="navProfileBtn" title="Settings & account">
     <div class="nav-user-avatar" id="navUserAvatar">U</div>
     <span class="nav-user-name" id="navUserName"></span>
+    <span class="gcal-nav-badge" id="gcalNavBadge" title="Google Calendar auto-sync active" style="pointer-events:none;"><span class="gcal-nav-dot"></span></span>
     <span class="nav-profile-caret">▾</span>
   </div>
   <button class="burger" id="burgerBtn" aria-label="Menu">
@@ -11386,8 +11385,7 @@ document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',
   const mProfBtn = document.getElementById('mobileProfileBtn');
   if(mProfBtn) mProfBtn.addEventListener('click', ()=>{
     window.closeMenu();
-    const profBtn = document.getElementById('navProfileBtn');
-    if(profBtn) profBtn.click();
+    setTimeout(()=>{ if(typeof window.openSettings==='function') window.openSettings(); }, 80);
   });
 })();
 
@@ -11622,8 +11620,12 @@ async function _applyDataPack(raw){
   const backdrop = document.getElementById('settingsPanelBackdrop');
   const profileBtn = document.getElementById('navProfileBtn');
 
+  if(!panel || !backdrop || !profileBtn){
+    console.warn('[Settings] Missing DOM elements — panel:', !!panel, 'backdrop:', !!backdrop, 'profileBtn:', !!profileBtn);
+    return;
+  }
+
   function openSettings(){
-    if(!_currentUser){ showToast('⚠ Please sign in first'); return; }
     // Populate avatar / username
     const sa = document.getElementById('settingsAvatar');
     const su = document.getElementById('settingsUsername');
@@ -11669,11 +11671,27 @@ async function _applyDataPack(raw){
   // Keep local alias for internal use
   function closeSettings(){ window.closeSettings(); }
 
+  // Expose openSettings globally too
+  window.openSettings = openSettings;
+
   profileBtn.addEventListener('click', e=>{
     e.stopPropagation();
     if(panel.classList.contains('open')) closeSettings();
     else openSettings();
   });
+
+  // Also wire mobile profile button here directly (belt-and-suspenders)
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const mBtn = document.getElementById('mobileProfileBtn');
+    if(mBtn && !mBtn._settingsWired){
+      mBtn._settingsWired = true;
+      mBtn.addEventListener('click', ()=>{
+        if(typeof window.closeMenu === 'function') window.closeMenu();
+        setTimeout(openSettings, 80);
+      });
+    }
+  });
+
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSettings(); });
 
   // mobileSyncBtn removed from menu — sync is now via Settings & Account
@@ -11878,7 +11896,10 @@ async function _applyDataPack(raw){
   // ── Nav badge ─────────────────────────────────────────────────────
   function updateNavBadge(connected){
     const badge = document.getElementById('gcalNavBadge');
-    if(badge) badge.style.display = connected ? 'flex' : 'none';
+    if(badge){
+      if(connected) badge.classList.add('visible');
+      else badge.classList.remove('visible');
+    }
   }
 
   // ── Connected card in settings ────────────────────────────────────
