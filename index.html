@@ -5768,7 +5768,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     <button class="nav-btn" data-page="quiz">Quiz</button>
   </div>
   <button class="nav-ai-btn" id="navAiPlanBtn" title="Plan today with AI"><span class="ai-dot"></span>AI Plan</button>
-  <div class="nav-profile-btn" id="navProfileBtn" title="Settings & account">
+  <div class="nav-profile-btn" id="navProfileBtn" title="Settings & account" onclick="if(typeof window.openSettings==='function'){var p=document.getElementById('settingsPanel');if(p&&p.classList.contains('open')){window.closeSettings();}else{window.openSettings();}}">
     <div class="nav-user-avatar" id="navUserAvatar">U</div>
     <span class="nav-user-name" id="navUserName"></span>
     <span class="gcal-nav-badge" id="gcalNavBadge" title="Google Calendar auto-sync active" style="pointer-events:none;"><span class="gcal-nav-dot"></span></span>
@@ -5789,7 +5789,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     <button class="nav-btn" data-page="quiz">Quiz</button>
     <div class="mm-divider"></div>
     <button class="nav-btn mm-ai-btn" id="mobileAiPlanBtn"><span class="ai-dot"></span>AI Plan</button>
-    <button class="nav-btn mm-profile-btn" id="mobileProfileBtn">⚙ Settings &amp; Account</button>
+    <button class="nav-btn mm-profile-btn" id="mobileProfileBtn" onclick="if(typeof window.closeMenu==='function')window.closeMenu();setTimeout(function(){if(typeof window.openSettings==='function')window.openSettings();},80);">⚙ Settings &amp; Account</button>
   </div>
 </div>
 
@@ -12541,67 +12541,6 @@ async function _applyDataPack(raw){
   };
 
 })();
-  // calendar scope needed to create the Daily Command calendar if it doesn't exist
-  // calendar.events scope needed to push/delete events
-  const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
-  let _token = null;   // { access_token, expiry_ms }
-  let _syncing = false;
-
-  // ── How many future days to sync ──────────────────────────────────
-  // ── Sync window constants ─────────────────────────────────────────
-  const HABIT_DAYS    = 7;   // habits: 1 week ahead only
-  const ACTIVITY_DAYS = 90;  // activities: up to 90 days (however far scheduled)
-
-  // ── Helpers ───────────────────────────────────────────────────────
-  function setStatus(msg, color){ 
-    const el = document.getElementById('gcalStatus');
-    if(el){ el.textContent = msg; el.style.color = color||'var(--muted)'; }
-  }
-  function setLabel(txt){
-    const el = document.getElementById('gcalSyncLabel');
-    if(el) el.textContent = txt;
-  }
-  function setProgress(pct){
-    const bar = document.getElementById('gcalProgressBar');
-    const wrap = document.getElementById('gcalProgress');
-    if(wrap) wrap.style.display = pct > 0 ? 'block' : 'none';
-    if(bar)  bar.style.width = pct + '%';
-  }
-  function clientId(){ return (localStorage.getItem(KEY_CLIENT_ID)||'').trim(); }
-
-  // ── Update sync button state ──────────────────────────────────────
-  window._gcalUpdateBtn = function(){
-    const btn = document.getElementById('gcalSyncBtn');
-    if(!btn) return;
-    const hasId = !!clientId();
-    btn.disabled = !hasId;
-    const tokenOk = _token && Date.now() < _token.expiry_ms;
-    setLabel(tokenOk ? '📅 Sync to Google Calendar' : 'Sign in with Google to Sync');
-  };
-
-  // ── Request OAuth token via GSI ───────────────────────────────────
-  function requestToken(){
-    return new Promise((resolve, reject) => {
-      if(!window.google || !window.google.accounts){
-        reject(new Error('Google Identity Services not loaded yet. Try again in a moment.')); return;
-      }
-      const cid = clientId();
-      if(!cid){ reject(new Error('No Client ID saved.')); return; }
-      const client = google.accounts.oauth2.initTokenClient({
-        client_id: cid,
-        scope: SCOPES,
-        callback: (resp) => {
-          if(resp.error){ reject(new Error(resp.error)); return; }
-          _token = { access_token: resp.access_token, expiry_ms: Date.now() + (resp.expires_in - 30)*1000 };
-          _gcalUpdateBtn();
-          resolve(_token.access_token);
-        }
-      });
-      client.requestAccessToken({ prompt: '' });
-    });
-  }
-
-
 
 // ══════════════════════════════════════════════════════════════════
 // QUIZ ENGINE
