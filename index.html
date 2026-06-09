@@ -5505,6 +5505,84 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 .gcal-step-num{width:16px;height:16px;border-radius:50%;background:var(--border-mid);color:var(--text-mid);display:flex;align-items:center;justify-content:center;font-size:.58rem;flex-shrink:0;margin-top:1px;}
 .gcal-hint-link{color:var(--teal2);text-decoration:none;}.gcal-hint-link:hover{text-decoration:underline;}
 
+/* ── Google Calendar Connect button (auth screen + settings) ── */
+.gcal-connect-btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;padding:13px 16px;
+  background:rgba(255,255,255,0.04);
+  border:0.5px solid rgba(255,255,255,0.15);
+  border-radius:11px;cursor:pointer;
+  font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;
+  color:rgba(255,255,255,0.88);
+  transition:all 0.3s cubic-bezier(0.16,1,0.3,1);
+  position:relative;overflow:hidden;
+  letter-spacing:.02em;
+}
+.gcal-connect-btn::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.06),transparent);
+  opacity:0;transition:opacity .3s;
+}
+.gcal-connect-btn:hover{
+  background:rgba(255,255,255,0.09);
+  border-color:rgba(255,255,255,0.3);
+  box-shadow:0 0 24px rgba(255,255,255,0.08), 0 4px 20px rgba(0,0,0,0.4);
+  transform:translateY(-1px);
+}
+.gcal-connect-btn:hover::before{opacity:1;}
+.gcal-connect-btn:active{transform:translateY(0);}
+.gcal-connect-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+.gcal-connect-btn .gcal-g-icon{
+  width:20px;height:20px;flex-shrink:0;
+  background:white;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;font-family:sans-serif;font-weight:700;
+}
+.gcal-connect-btn.connected{
+  background:rgba(46,196,165,0.08);
+  border-color:rgba(46,196,165,0.4);
+  color:var(--green);
+}
+.gcal-connect-btn.connected:hover{
+  background:rgba(46,196,165,0.14);
+  border-color:rgba(46,196,165,0.6);
+  box-shadow:0 0 16px rgba(46,196,165,0.15), 0 4px 20px rgba(0,0,0,0.4);
+}
+.gcal-divider{
+  display:flex;align-items:center;gap:10px;
+  margin:14px 0 12px;
+}
+.gcal-divider-line{flex:1;height:0.5px;background:var(--border);}
+.gcal-divider-text{
+  font-family:'JetBrains Mono',monospace;font-size:.56rem;
+  color:var(--muted2);text-transform:uppercase;letter-spacing:.14em;flex-shrink:0;
+}
+/* Auto-sync badge in nav */
+.gcal-nav-badge{
+  display:none;align-items:center;gap:5px;
+  padding:3px 9px 3px 7px;border-radius:999px;
+  background:rgba(46,196,165,0.1);border:0.5px solid rgba(46,196,165,0.3);
+  font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--green);
+  cursor:default;flex-shrink:0;
+  animation:gcalNavFadeIn .4s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes gcalNavFadeIn{from{opacity:0;transform:scale(.9);}to{opacity:1;transform:scale(1);}}
+.gcal-nav-badge .gcal-nav-dot{
+  width:5px;height:5px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 5px var(--green);
+  animation:gcalPulse 2s ease-in-out infinite;
+}
+.gcal-syncing-toast{
+  position:fixed;bottom:calc(var(--nav-h) + 16px);right:16px;
+  background:var(--s3);border:0.5px solid rgba(46,196,165,0.4);
+  border-radius:var(--r-sm);padding:8px 14px;
+  font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--green);
+  box-shadow:var(--shadow-md);
+  display:none;align-items:center;gap:7px;z-index:300;
+  animation:gcalToastIn .3s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes gcalToastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
 .settings-save-key-btn:hover {
   background: linear-gradient(135deg, rgba(31,122,140,0.34), rgba(44,165,191,0.2));
   border-color: var(--teal2); color: #fff;
@@ -5652,7 +5730,31 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
       <input type="file" id="authImportFile" style="display:none;">
       <button id="authImportApplyBtn" style="display:none;"></button>
     </div>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:.52rem;color:var(--muted2);text-align:center;margin-top:14px;padding-top:10px;border-top:0.5px solid var(--border);">⚡ Daily Command — your personal ops center</div>
+    <!-- Google Calendar Connect — shown after login -->
+    <div id="authGcalSection" style="display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border);">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.56rem;color:var(--muted2);text-align:center;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;">Connect Google Calendar</div>
+      <button class="gcal-connect-btn" id="authGcalConnectBtn">
+        <span class="gcal-g-icon">G</span>
+        <span id="authGcalConnectLabel">Connect Google Calendar</span>
+      </button>
+      <div id="authGcalHint" style="font-family:'JetBrains Mono',monospace;font-size:.54rem;color:var(--muted2);text-align:center;margin-top:8px;line-height:1.6;">
+        Sync your schedule automatically after every change.<br>No setup needed — just tap & allow.
+      </div>
+      <div id="authGcalStatus" style="font-family:'JetBrains Mono',monospace;font-size:.6rem;text-align:center;margin-top:6px;min-height:16px;"></div>
+    </div>
+
+    <div id="authGcalClientIdSection" style="display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border);">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.56rem;color:var(--muted2);text-align:center;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Google Calendar — requires OAuth Client ID</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--muted);line-height:1.65;margin-bottom:10px;">
+        To enable Google Calendar sync, paste your OAuth Client ID in Settings → Google Calendar.
+      </div>
+      <button class="gcal-connect-btn" id="authGcalClientBtn" onclick="window.closeSettings&&closeSettings();document.getElementById('navProfileBtn')&&document.getElementById('navProfileBtn').click();" style="font-size:.75rem;padding:10px 14px;">
+        <span style="font-size:1rem;">⚙</span>
+        Open Settings to Configure
+      </button>
+    </div>
+
+    <div style="font-family:'JetBrains Mono',monospace;font-size:.52rem;color:var(--muted2);text-align:center;margin-top:14px;padding-top:10px;border-top:0.5px solid var(--border);" id="authFooterLine">⚡ Daily Command — your personal ops center</div>
   </div>
 </div>
 
@@ -5667,6 +5769,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     <button class="nav-btn" data-page="quiz">Quiz</button>
   </div>
   <button class="nav-ai-btn" id="navAiPlanBtn" title="Plan today with AI"><span class="ai-dot"></span>AI Plan</button>
+  <div class="gcal-nav-badge" id="gcalNavBadge" title="Google Calendar auto-sync active"><span class="gcal-nav-dot"></span>Cal Sync</div>
   <div class="nav-profile-btn" id="navProfileBtn" title="Settings & account">
     <div class="nav-user-avatar" id="navUserAvatar">U</div>
     <span class="nav-user-name" id="navUserName"></span>
@@ -5976,29 +6079,48 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     <!-- Google Calendar Sync -->
     <div class="settings-section" id="gcalSection">
       <div class="settings-section-label">📅 Google Calendar Sync</div>
-      <div class="settings-section-desc">Push your scheduled habits &amp; events to Google Calendar. One-time setup, then sync with one tap.</div>
+      <div class="settings-section-desc" id="gcalSettingsDesc">Push your scheduled habits &amp; events to Google Calendar. Connect once, sync automatically on every change.</div>
 
-      <!-- ── Setup Guide (collapsible) ───────────────────────────── -->
-      <details id="gcalGuideDetails" style="margin-bottom:12px;">
+      <!-- Connected state -->
+      <div id="gcalConnectedCard" style="display:none;background:rgba(46,196,165,0.06);border:0.5px solid rgba(46,196,165,0.3);border-radius:var(--r-md);padding:12px 14px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:1rem;">✅</span>
+          <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:.82rem;color:var(--green);">Connected</span>
+          <span id="gcalConnectedEmail" style="font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.5;">
+          Auto-sync is <strong style="color:var(--teal2);">on</strong> — every schedule change syncs to your Daily Command calendar within 5 seconds.
+        </div>
+      </div>
+
+      <!-- Connect button -->
+      <button class="gcal-connect-btn" id="gcalConnectBtn" style="margin-bottom:10px;">
+        <span class="gcal-g-icon">G</span>
+        <span id="gcalConnectLabel">Connect Google Calendar</span>
+      </button>
+      <div id="gcalConnectHint" style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--muted2);line-height:1.6;margin-bottom:10px;">
+        Requires an OAuth Client ID — <a href="#" id="gcalSetupGuideLink" style="color:var(--teal2);">see setup guide ↗</a>
+      </div>
+
+      <!-- Setup Guide (collapsible) -->
+      <details id="gcalGuideDetails" style="margin-bottom:12px;display:none;">
         <summary style="cursor:pointer;font-size:.65rem;font-family:'JetBrains Mono',monospace;color:var(--teal2);padding:8px 10px;background:rgba(31,122,140,0.07);border:0.5px solid var(--teal);border-radius:var(--r-sm);list-style:none;display:flex;align-items:center;gap:6px;user-select:none;">
           <span style="font-size:.8rem;">⚙</span> Setup Guide — Get your OAuth Client ID
           <span id="gcalGuideArrow" style="margin-left:auto;transition:transform 0.2s;">▸</span>
         </summary>
         <div style="margin-top:8px;padding:12px 14px;background:rgba(2,35,48,0.6);border:0.5px solid var(--border-mid);border-radius:var(--r-sm);font-family:'JetBrains Mono',monospace;font-size:.62rem;line-height:1.75;color:var(--text-mid);">
           <div style="color:var(--amber2);font-family:'Syne',sans-serif;font-weight:700;font-size:.68rem;margin-bottom:8px;letter-spacing:.04em;">ONE-TIME SETUP (~5 MIN)</div>
-
           <div style="display:flex;flex-direction:column;gap:6px;">
             <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">1.</span><span>Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener" style="color:var(--teal2);">console.cloud.google.com</a> and sign in with your Google account.</span></div>
-            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">2.</span><span>Click <strong style="color:var(--text);">Select a project</strong> → <strong style="color:var(--text);">New Project</strong>. Name it anything (e.g. "Daily Command") and click <strong style="color:var(--text);">Create</strong>.</span></div>
-            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">3.</span><span>In the left sidebar go to <strong style="color:var(--text);">APIs &amp; Services → Library</strong>. Search for <strong style="color:var(--text);">Google Calendar API</strong> and click <strong style="color:var(--text);">Enable</strong>.</span></div>
-            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">4.</span><span>Go to <strong style="color:var(--text);">APIs &amp; Services → OAuth consent screen</strong>. Choose <strong style="color:var(--text);">External</strong>, fill in App name and your email, click <strong style="color:var(--text);">Save and Continue</strong> through all steps.</span></div>
-            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">5.</span><span>Go to <strong style="color:var(--text);">APIs &amp; Services → <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--teal2);">Credentials</a></strong> → <strong style="color:var(--text);">+ Create Credentials → OAuth client ID</strong>.</span></div>
-            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">6.</span><span>Application type: <strong style="color:var(--text);">Web application</strong>. Under <strong style="color:var(--text);">Authorised JavaScript origins</strong> add your app's URL (e.g. <code style="color:var(--amber2);">https://yourusername.github.io</code> or <code style="color:var(--amber2);">http://localhost</code> for local testing). Click <strong style="color:var(--text);">Create</strong>.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">2.</span><span>Click <strong style="color:var(--text);">Select a project</strong> → <strong style="color:var(--text);">New Project</strong>. Name it "Daily Command" and click <strong style="color:var(--text);">Create</strong>.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">3.</span><span>Go to <strong style="color:var(--text);">APIs &amp; Services → Library</strong>. Search for <strong style="color:var(--text);">Google Calendar API</strong> and click <strong style="color:var(--text);">Enable</strong>.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">4.</span><span>Go to <strong style="color:var(--text);">OAuth consent screen</strong>. Choose <strong style="color:var(--text);">External</strong>, fill in App name and email, click through all steps.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">5.</span><span>Go to <strong style="color:var(--text);">Credentials</strong> → <strong style="color:var(--text);">+ Create Credentials → OAuth client ID</strong>.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">6.</span><span>Application type: <strong style="color:var(--text);">Web application</strong>. Under <strong style="color:var(--text);">Authorised JavaScript origins</strong> add your app URL. Click <strong style="color:var(--text);">Create</strong>.</span></div>
             <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">7.</span><span>Copy the <strong style="color:var(--text);">Client ID</strong> (ends in <code style="color:var(--amber2);">.apps.googleusercontent.com</code>) and paste it below.</span></div>
           </div>
-
           <div style="margin-top:10px;padding:8px 10px;background:rgba(232,163,56,0.07);border:0.5px solid rgba(232,163,56,0.25);border-radius:6px;color:var(--amber2);">
-            ⚠ If you get a <strong>"redirect_uri_mismatch"</strong> error when signing in, go back to step 6 and make sure the Authorised JavaScript origin exactly matches the URL in your browser's address bar (no trailing slash).
+            ⚠ If you get a <strong>"redirect_uri_mismatch"</strong> error, make sure the Authorised JavaScript origin exactly matches the URL in your browser's address bar.
           </div>
         </div>
       </details>
@@ -6010,16 +6132,16 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
       <div class="settings-key-status" id="gcalClientIdStatus"></div>
 
       <div class="gcal-progress" id="gcalProgress"><div class="gcal-progress-bar" id="gcalProgressBar"></div></div>
-      <button class="gcal-sync-btn" id="gcalSyncBtn" disabled>
+      <button class="gcal-sync-btn" id="gcalSyncBtn" disabled style="margin-top:12px;">
         <span class="gcal-icon">📅</span>
         <span id="gcalSyncLabel">Sign in with Google to Sync</span>
       </button>
       <div class="gcal-status" id="gcalStatus"></div>
-      <label id="gcalAutoSyncRow" style="display:none;align-items:center;gap:8px;margin-top:10px;cursor:pointer;user-select:none;font-size:.68rem;color:var(--muted);font-family:'JetBrains Mono',monospace;">
-        <input type="checkbox" id="gcalAutoSyncToggle" style="accent-color:var(--teal2);width:14px;height:14px;cursor:pointer;">
-        Auto-sync on every schedule change
-        <span id="gcalAutoSyncDot" style="display:none;width:7px;height:7px;border-radius:50%;background:var(--teal2);animation:gcalPulse 1.4s ease-in-out infinite;"></span>
-      </label>
+
+      <div id="gcalAutoSyncRow" style="display:none;align-items:center;gap:8px;margin-top:10px;font-size:.68rem;color:var(--teal2);font-family:'JetBrains Mono',monospace;padding:8px 12px;background:rgba(46,196,165,0.05);border:0.5px solid rgba(46,196,165,0.2);border-radius:var(--r-sm);">
+        <span style="font-size:.9rem;">✓</span> Auto-sync enabled — calendar updates after every change
+        <span id="gcalAutoSyncDot" style="display:none;width:7px;height:7px;border-radius:50%;background:var(--green);animation:gcalPulse 1.4s ease-in-out infinite;margin-left:auto;"></span>
+      </div>
       <div id="gcalAutoSyncStatus" style="font-size:.62rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:4px;min-height:14px;"></div>
 
       <div id="gcalIphoneHint" style="display:none;margin-top:12px;padding:10px 12px;background:rgba(31,122,140,0.07);border:0.5px solid var(--teal);border-radius:var(--r-sm);">
@@ -6029,8 +6151,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
           <span style="color:var(--amber2);font-weight:700;">📱 First time? Enable the calendar on iPhone:</span><br>
           1. Open <strong style="color:var(--text);">Settings → Calendar → Accounts → Gmail</strong><br>
           2. Make sure <strong style="color:var(--text);">Calendars</strong> is toggled on<br>
-          3. Open the <strong style="color:var(--text);">Calendar app</strong> → tap <strong style="color:var(--text);">Calendars</strong> (bottom) → find <strong style="color:var(--text);">Daily Command</strong> under your Google account and tick it<br><br>
-          <span style="color:var(--muted);">If using the Google Calendar app instead: tap the ☰ menu → scroll to your account → enable Daily Command.</span>
+          3. Open the <strong style="color:var(--text);">Calendar app</strong> → tap <strong style="color:var(--text);">Calendars</strong> (bottom) → find <strong style="color:var(--text);">Daily Command</strong> under your Google account and tick it
         </div>
       </div>
     </div>
@@ -6647,6 +6768,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="gcal-syncing-toast" id="gcalSyncingToast">
+  <span style="animation:gcalPulse 1.2s ease-in-out infinite;display:inline-block;">📅</span>
+  <span id="gcalSyncingToastMsg">Syncing to Google Calendar…</span>
+</div>
 
 <!-- ── DAY TIME PICKER POPOVER ── -->
 <!-- ── EVENT TITLE AUTOCOMPLETE DROPDOWN (fixed, escapes modal overflow) ── -->
@@ -6894,6 +7019,8 @@ async function _bootUser(user, ov){
   setTimeout(()=>{ ov.style.display='none'; if(btn){btn.disabled=false;} },520);
   _setNavUser(_currentUser);
   render(); renderTodos(); renderNotesDate();
+  // Show Google Calendar connect section on auth screen (in case user sees it briefly)
+  setTimeout(()=>{ if(typeof window._gcalOnLogin==='function') window._gcalOnLogin(); }, 600);
 }
 
 // ── Init auth on page load ────────────────────────────────────────────
@@ -11694,10 +11821,705 @@ async function _applyDataPack(raw){
 
 
 // ══════════════════════════════════════════════════════════════════
-// GOOGLE CALENDAR SYNC ENGINE
+// GOOGLE CALENDAR SYNC ENGINE — v2 (auto-sync always-on)
 // ══════════════════════════════════════════════════════════════════
 (function(){
-  const KEY_CLIENT_ID = 'dcmd_gcal_client_id';
+  const KEY_CLIENT_ID  = 'dcmd_gcal_client_id';
+  const KEY_CONNECTED  = 'dcmd_gcal_connected';    // '1' once first auth succeeds
+  const KEY_USER_EMAIL = 'dcmd_gcal_email';        // display email after connect
+  const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
+  let _token    = null;   // { access_token, expiry_ms }
+  let _syncing  = false;
+  let _autoSyncTimer = null;
+
+  // ── Sync window constants ─────────────────────────────────────────
+  const HABIT_DAYS    = 7;
+  const ACTIVITY_DAYS = 90;
+
+  // ── Helpers ───────────────────────────────────────────────────────
+  function setStatus(msg, color){
+    const el = document.getElementById('gcalStatus');
+    if(el){ el.textContent = msg; el.style.color = color||'var(--muted)'; }
+  }
+  function setLabel(txt){
+    const el = document.getElementById('gcalSyncLabel');
+    if(el) el.textContent = txt;
+  }
+  function setProgress(pct){
+    const bar  = document.getElementById('gcalProgressBar');
+    const wrap = document.getElementById('gcalProgress');
+    if(wrap) wrap.style.display = pct > 0 ? 'block' : 'none';
+    if(bar)  bar.style.width = pct + '%';
+  }
+  function clientId(){ return (localStorage.getItem(KEY_CLIENT_ID)||'').trim(); }
+
+  // ── Syncing toast ─────────────────────────────────────────────────
+  let _toastTimeout = null;
+  function showSyncingToast(msg, done=false){
+    const toast = document.getElementById('gcalSyncingToast');
+    const msgEl = document.getElementById('gcalSyncingToastMsg');
+    if(!toast) return;
+    if(msgEl) msgEl.textContent = msg;
+    toast.style.display = 'flex';
+    if(_toastTimeout) clearTimeout(_toastTimeout);
+    if(done){
+      toast.style.borderColor = 'rgba(46,196,165,0.5)';
+      _toastTimeout = setTimeout(()=>{
+        toast.style.display = 'none';
+        toast.style.borderColor = '';
+      }, 2800);
+    }
+  }
+  function hideSyncingToast(){
+    const toast = document.getElementById('gcalSyncingToast');
+    if(toast) toast.style.display = 'none';
+  }
+
+  // ── Nav badge ─────────────────────────────────────────────────────
+  function updateNavBadge(connected){
+    const badge = document.getElementById('gcalNavBadge');
+    if(badge) badge.style.display = connected ? 'flex' : 'none';
+  }
+
+  // ── Connected card in settings ────────────────────────────────────
+  function updateConnectedCard(){
+    const card   = document.getElementById('gcalConnectedCard');
+    const email  = document.getElementById('gcalConnectedEmail');
+    const hint   = document.getElementById('gcalConnectHint');
+    const guide  = document.getElementById('gcalGuideDetails');
+    const tokenOk = _token && Date.now() < _token.expiry_ms;
+    const stored  = localStorage.getItem(KEY_CONNECTED) === '1';
+
+    if(card){
+      card.style.display = (tokenOk || stored) ? 'block' : 'none';
+      if(email) email.textContent = localStorage.getItem(KEY_USER_EMAIL)||'';
+    }
+    if(hint) hint.style.display = (tokenOk || stored) ? 'none' : '';
+    if(guide) guide.style.display = (tokenOk || stored) ? 'none' : '';
+  }
+
+  // ── Auth screen Google Calendar section ───────────────────────────
+  function updateAuthGcalSection(){
+    const sect = document.getElementById('authGcalSection');
+    const altSect = document.getElementById('authGcalClientIdSection');
+    if(!sect) return;
+    const hasId   = !!clientId();
+    const connected = localStorage.getItem(KEY_CONNECTED) === '1';
+    const tokenOk   = _token && Date.now() < _token.expiry_ms;
+
+    if(hasId){
+      sect.style.display    = 'block';
+      if(altSect) altSect.style.display = 'none';
+      const btn   = document.getElementById('authGcalConnectBtn');
+      const label = document.getElementById('authGcalConnectLabel');
+      const hint  = document.getElementById('authGcalHint');
+      const stat  = document.getElementById('authGcalStatus');
+      if(connected || tokenOk){
+        if(btn){ btn.classList.add('connected'); btn.disabled = false; }
+        if(label) label.textContent = '✓ Google Calendar Connected';
+        if(hint) hint.textContent = 'Auto-sync is active — schedule changes sync automatically.';
+        if(stat){ stat.textContent = localStorage.getItem(KEY_USER_EMAIL)||''; stat.style.color='var(--green)'; }
+      } else {
+        if(btn){ btn.classList.remove('connected'); btn.disabled = false; }
+        if(label) label.textContent = 'Connect Google Calendar';
+        if(hint) hint.innerHTML = 'Sync your schedule automatically after every change.<br>No setup needed — just tap & allow.';
+        if(stat) stat.textContent = '';
+      }
+    } else {
+      // No client ID saved — don't show gcal section at all (keep it clean)
+      sect.style.display    = 'none';
+      if(altSect) altSect.style.display = 'none';
+    }
+  }
+
+  // ── Update sync button state ──────────────────────────────────────
+  window._gcalUpdateBtn = function(){
+    const btn  = document.getElementById('gcalSyncBtn');
+    const cBtn = document.getElementById('gcalConnectBtn');
+    const cLabel = document.getElementById('gcalConnectLabel');
+    const hasId  = !!clientId();
+    const tokenOk = _token && Date.now() < _token.expiry_ms;
+    const stored  = localStorage.getItem(KEY_CONNECTED) === '1';
+
+    if(btn){
+      btn.disabled = !hasId;
+      setLabel(tokenOk ? '📅 Sync to Google Calendar now' : 'Sign in with Google to Sync');
+    }
+    if(cBtn){
+      if(tokenOk || stored){
+        cBtn.classList.add('connected');
+        if(cLabel) cLabel.textContent = '✓ Connected — click to re-authenticate';
+      } else {
+        cBtn.classList.remove('connected');
+        if(cLabel) cLabel.textContent = 'Connect Google Calendar';
+      }
+      cBtn.disabled = !hasId;
+    }
+
+    // Auto-sync row (settings)
+    const autoRow = document.getElementById('gcalAutoSyncRow');
+    if(autoRow) autoRow.style.display = (tokenOk || stored) ? 'flex' : 'none';
+
+    // Nav badge
+    updateNavBadge(tokenOk || stored);
+    updateConnectedCard();
+    updateAuthGcalSection();
+  };
+
+  // ── Request OAuth token via GSI ───────────────────────────────────
+  function requestToken(){
+    return new Promise((resolve, reject) => {
+      if(!window.google || !window.google.accounts){
+        reject(new Error('Google Identity Services not loaded yet. Try again in a moment.')); return;
+      }
+      const cid = clientId();
+      if(!cid){ reject(new Error('No Client ID saved. Go to Settings → Google Calendar to add one.')); return; }
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: cid,
+        scope: SCOPES,
+        callback: (resp) => {
+          if(resp.error){ reject(new Error(resp.error_description || resp.error)); return; }
+          _token = { access_token: resp.access_token, expiry_ms: Date.now() + (resp.expires_in - 30)*1000 };
+          // Persist connection state
+          localStorage.setItem(KEY_CONNECTED, '1');
+          // Try to get user email via token info
+          fetch('https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + _token.access_token)
+            .then(r=>r.json()).then(info=>{
+              if(info.email){ localStorage.setItem(KEY_USER_EMAIL, info.email); }
+              _gcalUpdateBtn();
+            }).catch(()=>{ _gcalUpdateBtn(); });
+          resolve(_token.access_token);
+        }
+      });
+      client.requestAccessToken({ prompt: '' });
+    });
+  }
+
+  // ── Silent token refresh (try prompt=none first) ──────────────────
+  function silentRefresh(){
+    return new Promise((resolve, reject) => {
+      if(!window.google || !window.google.accounts){ reject(new Error('GSI not loaded')); return; }
+      const cid = clientId();
+      if(!cid){ reject(new Error('No client ID')); return; }
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: cid,
+        scope: SCOPES,
+        prompt: '',
+        callback: (resp) => {
+          if(resp.error || !resp.access_token){ reject(new Error(resp.error||'no token')); return; }
+          _token = { access_token: resp.access_token, expiry_ms: Date.now() + (resp.expires_in - 30)*1000 };
+          localStorage.setItem(KEY_CONNECTED, '1');
+          _gcalUpdateBtn();
+          resolve(_token.access_token);
+        }
+      });
+      client.requestAccessToken({ prompt: 'none' });
+    });
+  }
+
+  // ── Get a valid token (reuse → silent refresh → interactive) ─────
+  async function getToken(interactive=false){
+    if(_token && Date.now() < _token.expiry_ms) return _token.access_token;
+    // If we have a stored connection, try silent refresh first
+    if(localStorage.getItem(KEY_CONNECTED) === '1' && !interactive){
+      try {
+        return await silentRefresh();
+      } catch(e){
+        // Silent failed — need interactive
+        return requestToken();
+      }
+    }
+    return requestToken();
+  }
+
+  // ── Connect button handler (interactive auth) ─────────────────────
+  async function connectGoogle(statusElId, labelElId){
+    const statusEl = statusElId ? document.getElementById(statusElId) : null;
+    const labelEl  = labelElId  ? document.getElementById(labelElId)  : null;
+    if(statusEl){ statusEl.textContent = 'Opening Google sign-in…'; statusEl.style.color = 'var(--teal2)'; }
+    try {
+      await requestToken(); // always interactive
+      if(statusEl){ statusEl.textContent = '✓ Connected! Auto-sync is now active.'; statusEl.style.color = 'var(--green)'; }
+      showToast('📅 Google Calendar connected — auto-sync on');
+      _gcalUpdateBtn();
+      // Trigger first sync
+      setTimeout(()=>{ syncToGcal(true); }, 800);
+    } catch(e){
+      if(statusEl){ statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
+    }
+  }
+
+  // ── Build Google Calendar event object from ICS VEVENT lines ─────
+  function icsDtToRfc(dtStr){
+    const d = dtStr.replace(/[^\d]/g,'');
+    if(d.length === 8){
+      return d.substring(0,4)+'-'+d.substring(4,6)+'-'+d.substring(6,8);
+    }
+    return d.substring(0,4)+'-'+d.substring(4,6)+'-'+d.substring(6,8)+
+           'T'+d.substring(8,10)+':'+d.substring(10,12)+':'+d.substring(12,14);
+  }
+
+  function parseVevents(icsLines){
+    const events = [];
+    let ev = null;
+    let inAlarm = false;
+    for(const raw of icsLines){
+      const line = raw.trim();
+      if(line === 'BEGIN:VEVENT'){ ev = {}; inAlarm = false; continue; }
+      if(line === 'END:VEVENT'  ){ if(ev) events.push(ev); ev = null; inAlarm = false; continue; }
+      if(line === 'BEGIN:VALARM'){ inAlarm = true;  continue; }
+      if(line === 'END:VALARM'  ){ inAlarm = false; continue; }
+      if(!ev) continue;
+      const colon = line.indexOf(':');
+      if(colon < 0) continue;
+      const key = line.substring(0, colon).split(';')[0];
+      const val = line.substring(colon + 1);
+      if(inAlarm){
+        if(key === 'TRIGGER') ev['TRIGGER'] = val;
+        continue;
+      }
+      ev[key] = val;
+    }
+    return events;
+  }
+
+  function veventToGcal(ev){
+    const isDateOnly = (ev['DTSTART;VALUE=DATE'] || (!ev['DTSTART'] || !ev['DTSTART'].includes('T')));
+    let start, end;
+    if(isDateOnly){
+      const ds = ev['DTSTART;VALUE=DATE'] || ev['DTSTART'] || '';
+      const de = ev['DTEND;VALUE=DATE']   || ev['DTEND']   || '';
+      start = { date: icsDtToRfc(ds) };
+      end   = { date: icsDtToRfc(de) };
+    } else {
+      const tz = 'Europe/Sofia';
+      start = { dateTime: icsDtToRfc(ev['DTSTART']||''), timeZone: tz };
+      end   = { dateTime: icsDtToRfc(ev['DTEND']||''),   timeZone: tz };
+    }
+
+    const isReminder = (ev['UID']||'').endsWith('-reminder@dc');
+    let popupMinutes = 10;
+    if(isReminder){
+      const trigger = ev['TRIGGER'] || '';
+      const triggerMatch = trigger.match(/PT(\d+)M/);
+      popupMinutes = triggerMatch ? parseInt(triggerMatch[1]) : 0;
+      popupMinutes = -popupMinutes;
+    }
+
+    const obj = {
+      summary: (ev['SUMMARY']||'').replace(/\\n/g,'\n').replace(/\\,/g,',').replace(/\\;/g,';'),
+      description: (ev['DESCRIPTION']||'').replace(/\\n/g,'\n').replace(/\\,/g,','),
+      start, end,
+      transparency: isReminder ? 'transparent' : 'opaque',
+      extendedProperties: { private: { source: 'daily_command', uid: ev['UID']||'' } },
+      reminders: { useDefault: false, overrides: [{ method:'popup', minutes: popupMinutes }] }
+    };
+    if(ev['STATUS'] === 'COMPLETED') obj.colorId = '2';
+    return obj;
+  }
+
+  // ── Google Batch HTTP API helper ──────────────────────────────────
+  async function gcalBatch(token, subRequests, attempt=0){
+    const BOUNDARY = 'dc_batch_' + Date.now();
+    let body = '';
+    subRequests.forEach((req, idx) => {
+      body += `--${BOUNDARY}\r\n`;
+      body += `Content-Type: application/http\r\n`;
+      body += `Content-ID: <item-${idx}>\r\n\r\n`;
+      body += `${req.method} ${req.path} HTTP/1.1\r\n`;
+      if(req.json){
+        const jsonStr = JSON.stringify(req.json);
+        body += `Content-Type: application/json\r\n`;
+        body += `Content-Length: ${new TextEncoder().encode(jsonStr).length}\r\n\r\n`;
+        body += jsonStr + '\r\n';
+      } else {
+        body += '\r\n';
+      }
+    });
+    body += `--${BOUNDARY}--`;
+
+    const resp = await fetch('https://www.googleapis.com/batch/calendar/v3', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': `multipart/mixed; boundary=${BOUNDARY}`
+      },
+      body
+    });
+
+    if((resp.status === 429 || resp.status === 403) && attempt < 4){
+      const backoff = Math.min(3000 * Math.pow(2, attempt) + Math.random()*1000, 30000);
+      await new Promise(r => setTimeout(r, backoff));
+      return gcalBatch(token, subRequests, attempt + 1);
+    }
+
+    if(!resp.ok){
+      const txt = await resp.text().catch(()=>'');
+      throw new Error(`Batch request failed ${resp.status}: ${txt.substring(0,200)}`);
+    }
+
+    const respText = await resp.text();
+    const respBoundary = (resp.headers.get('content-type')||'').match(/boundary=([^\s;]+)/)?.[1];
+    if(!respBoundary) return subRequests.map(()=>({ ok: false, status: 0, body: {} }));
+
+    const parts = respText.split('--' + respBoundary).slice(1);
+    return parts.slice(0, subRequests.length).map(part => {
+      const innerStart = part.indexOf('\r\n\r\n');
+      if(innerStart < 0) return { ok: false, status: 0, body: {} };
+      const inner = part.substring(innerStart + 4);
+      const statusLine = inner.match(/^HTTP\/\d+\.?\d*\s+(\d+)/);
+      const status = statusLine ? parseInt(statusLine[1]) : 0;
+      const bodyStart = inner.indexOf('\r\n\r\n');
+      let bodyObj = {};
+      if(bodyStart >= 0){
+        try { bodyObj = JSON.parse(inner.substring(bodyStart + 4)); } catch(e){}
+      }
+      return { ok: status >= 200 && status < 300, status, body: bodyObj };
+    });
+  }
+
+  // ── Push events via batch API ─────────────────────────────────────
+  async function pushEventsBatch(token, calendarId, gcalEvents, onProgress){
+    const BATCH_SIZE = 50;
+    let pushed = 0, failed = 0;
+    const failLog = [];
+    const calPath = `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+
+    for(let i = 0; i < gcalEvents.length; i += BATCH_SIZE){
+      const chunk = gcalEvents.slice(i, i + BATCH_SIZE);
+      const subRequests = chunk.map(ev => ({
+        method: 'POST',
+        path: calPath,
+        json: ev
+      }));
+
+      let results;
+      try {
+        results = await gcalBatch(token, subRequests);
+      } catch(err){
+        chunk.forEach(ev => {
+          failed++;
+          failLog.push(`${ev.summary}: ${err.message}`);
+        });
+        if(i + BATCH_SIZE < gcalEvents.length) await new Promise(r => setTimeout(r, 2000));
+        onProgress && onProgress(pushed, failed, gcalEvents.length);
+        continue;
+      }
+
+      results.forEach((res, j) => {
+        if(res.ok) pushed++;
+        else {
+          failed++;
+          failLog.push(`${chunk[j]?.summary||'?'}: HTTP ${res.status}`);
+        }
+      });
+      onProgress && onProgress(pushed, failed, gcalEvents.length);
+      if(i + BATCH_SIZE < gcalEvents.length) await new Promise(r => setTimeout(r, 600));
+    }
+    return { pushed, failed, failLog };
+  }
+
+  // ── Delete all previously synced Daily Command events ────────────
+  async function deleteEventsBatch(token, calendarId, ids){
+    const BATCH_SIZE = 50;
+    const calPath = base => `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${base}`;
+    for(let i = 0; i < ids.length; i += BATCH_SIZE){
+      const chunk = ids.slice(i, i + BATCH_SIZE);
+      const subRequests = chunk.map(id => ({ method: 'DELETE', path: calPath(id) }));
+      try { await gcalBatch(token, subRequests); } catch(e){}
+      if(i + BATCH_SIZE < ids.length) await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
+  function buildFutureLines(){
+    const lines = [];
+    const today = new Date();
+    const maxDays = Math.max(HABIT_DAYS, ACTIVITY_DAYS);
+    const reminderSel = document.getElementById('mexReminderTime');
+    const reminderMinuteOfDay = reminderSel ? parseInt(reminderSel.value) : 540;
+    if(typeof window._buildIcsDayLines !== 'function') return lines;
+    for(let i = 0; i < maxDays; i++){
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const dayLines = window._buildIcsDayLines(d, i < HABIT_DAYS ? reminderMinuteOfDay : undefined);
+      let inside = false, uid = '', buf = [], isActivity = false;
+      for(const ln of dayLines){
+        if(ln === 'BEGIN:VEVENT'){ inside = true; uid = ''; buf = ['BEGIN:VEVENT']; isActivity = false; continue; }
+        if(inside && ln.startsWith('UID:')){ uid = ln.substring(4); }
+        if(inside && ln !== 'END:VEVENT'){ buf.push(ln); continue; }
+        if(ln === 'END:VEVENT' && inside){
+          isActivity = !/^.+-\d{8}@dc$/.test(uid) && !/-reminder@dc$/.test(uid);
+          const skip = !isActivity && i >= HABIT_DAYS;
+          if(!skip){
+            buf.push('X-DC-TYPE:' + (isActivity ? 'activity' : 'habit'));
+            buf.push('END:VEVENT');
+            lines.push(...buf);
+          }
+          inside = false; buf = [];
+          continue;
+        }
+        if(!inside) lines.push(ln);
+      }
+    }
+    return lines;
+  }
+
+  // Remove duplicate VEVENT blocks for same UID within a range to prevent double events
+  function dedupeVevents(icsLines){
+    const lines = [];
+    let buf = [], inside = false;
+    const seen = new Set();
+    for(const ln of icsLines){
+      if(ln.trim()==='BEGIN:VEVENT'){ inside=true; buf=['BEGIN:VEVENT']; continue; }
+      if(ln.trim()==='END:VEVENT'){
+        inside=false; buf.push('END:VEVENT');
+        const uid = (buf.find(l=>l.startsWith('UID:'))||'').replace('UID:','').trim();
+        const dt  = (buf.find(l=>l.startsWith('DTSTART'))||'').split(':').slice(1).join(':').trim().substring(0,8);
+        const key = uid + '|' + dt;
+        if(!seen.has(key)){
+          seen.add(key);
+          lines.push(...buf);
+        }
+        buf = []; continue;
+      }
+      if(inside) buf.push(ln);
+      else lines.push(ln);
+    }
+    return lines;
+  }
+
+  // ── Find or create the "Daily Command" calendar ──────────────────
+  async function getOrCreateDcCalendar(token){
+    const listResp = await fetch(
+      'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',
+      { headers: { 'Authorization': 'Bearer ' + token } }
+    );
+    if(!listResp.ok) throw new Error('Could not fetch calendar list');
+    const list = await listResp.json();
+    const existing = (list.items||[]).find(c =>
+      c.summary === 'Daily Command' && c.accessRole === 'owner'
+    );
+    if(existing) return existing.id;
+    const createResp = await fetch(
+      'https://www.googleapis.com/calendar/v3/calendars',
+      { method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summary: 'Daily Command', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Sofia' })
+      }
+    );
+    if(!createResp.ok) throw new Error('Could not create Daily Command calendar');
+    const cal = await createResp.json();
+    return cal.id;
+  }
+
+  // ── Delete old DC events ─────────────────────────────────────────
+  async function clearDcEvents(token, calendarId){
+    const today = new Date();
+    const windowStart = new Date(today);
+    windowStart.setDate(today.getDate() - 1);
+    const windowEnd = new Date(today);
+    windowEnd.setDate(today.getDate() + ACTIVITY_DAYS + 5);
+
+    let pageToken = null;
+    const toDelete = [];
+    do {
+      let url = 'https://www.googleapis.com/calendar/v3/calendars/'
+        + encodeURIComponent(calendarId)
+        + '/events?maxResults=250&singleEvents=true'
+        + '&timeMin=' + windowStart.toISOString()
+        + '&timeMax=' + windowEnd.toISOString()
+        + '&privateExtendedProperty=source%3Ddaily_command';
+      if(pageToken) url += '&pageToken=' + pageToken;
+      const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      if(!r.ok) break;
+      const data = await r.json();
+      (data.items||[]).forEach(ev => toDelete.push(ev.id));
+      pageToken = data.nextPageToken || null;
+    } while(pageToken);
+
+    if(toDelete.length > 0){
+      await deleteEventsBatch(token, calendarId, toDelete);
+    }
+    return toDelete.length;
+  }
+
+  // ── Main sync ─────────────────────────────────────────────────────
+  async function syncToGcal(silent=false){
+    if(_syncing) return;
+    _syncing = true;
+    const btn = document.getElementById('gcalSyncBtn');
+    if(btn) btn.disabled = true;
+    setProgress(0);
+
+    if(!silent){
+      setStatus('Signing in…', 'var(--teal2)');
+    } else {
+      showSyncingToast('Syncing to Google Calendar…');
+    }
+
+    try {
+      const token = await getToken(false);
+      setProgress(5);
+
+      if(!silent) setStatus('Finding Daily Command calendar…', 'var(--teal2)');
+      const calendarId = await getOrCreateDcCalendar(token);
+      setProgress(15);
+
+      if(!silent) setStatus('Cleaning up old events…', 'var(--teal2)');
+      await clearDcEvents(token, calendarId);
+      setProgress(30);
+
+      if(!silent) setStatus('Building events…', 'var(--teal2)');
+      const rawLines = buildFutureLines();
+      const dedupedLines = dedupeVevents(rawLines);
+      const vevents  = parseVevents(dedupedLines);
+
+      if(vevents.length === 0){
+        setStatus('No events to sync.', 'var(--muted)');
+        setProgress(0); _syncing = false; if(btn){ btn.disabled = false; _gcalUpdateBtn(); }
+        hideSyncingToast();
+        return;
+      }
+      setProgress(35);
+
+      if(!silent) setStatus(`Pushing ${vevents.length} events…`, 'var(--teal2)');
+      const gcalEventsToSync = vevents.map(ev => {
+        const gcalEv = veventToGcal(ev);
+        gcalEv.extendedProperties = gcalEv.extendedProperties || { private: {} };
+        gcalEv.extendedProperties.private.source = 'daily_command';
+        gcalEv.extendedProperties.private.dcType = ev['X-DC-TYPE'] || 'habit';
+        gcalEv.extendedProperties.private.uid    = ev['UID'] || '';
+        return gcalEv;
+      });
+
+      const { pushed, failed, failLog } = await pushEventsBatch(
+        token, calendarId, gcalEventsToSync,
+        (p, f, total) => {
+          const pct = 35 + Math.round(((p + f) / total) * 60);
+          setProgress(Math.min(95, pct));
+          if(!silent) setStatus(`Pushed ${p}/${total}…`, 'var(--teal2)');
+        }
+      );
+
+      setProgress(100);
+      let msg;
+      if(failed > 0){
+        const sample = failLog.slice(0,3).join(' | ');
+        msg = `✓ ${pushed} synced, ${failed} failed. ${sample}`;
+      } else {
+        msg = `✓ ${pushed} events in Daily Command! (${HABIT_DAYS}d habits + activities)`;
+      }
+      setStatus(msg, pushed > 0 ? 'var(--green)' : 'var(--amber)');
+
+      if(silent){
+        const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        showSyncingToast(`✓ Synced ${pushed} events · ${now}`, true);
+        setAutoSyncStatus('Last sync: ' + now, 'var(--muted)');
+      } else {
+        showToast(`📅 ${pushed} events → Daily Command calendar`);
+        const hint = document.getElementById('gcalIphoneHint');
+        if(hint) hint.style.display = 'block';
+      }
+      setTimeout(()=>setProgress(0), 2000);
+
+    } catch(err){
+      setStatus('✗ ' + err.message, 'var(--red)');
+      setProgress(0);
+      if(silent) hideSyncingToast();
+      // If token expired, clear stored state so next sync triggers re-auth
+      if(err.message && (err.message.includes('401') || err.message.includes('invalid') || err.message.includes('unauthorized'))){
+        _token = null;
+        localStorage.removeItem(KEY_CONNECTED);
+        _gcalUpdateBtn();
+      }
+    }
+
+    _syncing = false;
+    if(btn){ btn.disabled = false; _gcalUpdateBtn(); }
+    showAutoSyncDot(false);
+  }
+
+  // ── Auto-sync helpers ─────────────────────────────────────────────
+  function setAutoSyncStatus(msg, color){
+    const el = document.getElementById('gcalAutoSyncStatus');
+    if(el){ el.textContent = msg; el.style.color = color||'var(--muted)'; }
+  }
+  function showAutoSyncDot(visible){
+    const dot = document.getElementById('gcalAutoSyncDot');
+    if(dot) dot.style.display = visible ? 'inline-block' : 'none';
+  }
+  function isConnected(){
+    const tokenOk = _token && Date.now() < _token.expiry_ms;
+    return tokenOk || localStorage.getItem(KEY_CONNECTED) === '1';
+  }
+
+  // ── Auto-sync on save — called by sd() after every data save ──────
+  window._scheduleAutoSync = function(){
+    if(!isConnected()) return;
+    if(!clientId()) return;
+    clearTimeout(_autoSyncTimer);
+    showAutoSyncDot(true);
+    setAutoSyncStatus('Changes detected — syncing in 5s…', 'var(--teal2)');
+    _autoSyncTimer = setTimeout(async ()=>{
+      setAutoSyncStatus('Syncing…', 'var(--teal2)');
+      try {
+        await syncToGcal(true);
+      } catch(e){
+        setAutoSyncStatus('Auto-sync failed: ' + e.message, 'var(--red)');
+      }
+      showAutoSyncDot(false);
+    }, 5000);
+  };
+
+  // ── Wire up buttons ───────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', ()=>{
+    _gcalUpdateBtn();
+
+    // Manual sync button (settings)
+    const btn = document.getElementById('gcalSyncBtn');
+    if(btn) btn.addEventListener('click', ()=>syncToGcal(false));
+
+    // Connect button (settings)
+    const cBtn = document.getElementById('gcalConnectBtn');
+    if(cBtn) cBtn.addEventListener('click', ()=>connectGoogle('gcalStatus', 'gcalConnectLabel'));
+
+    // Auth screen connect button
+    const authBtn = document.getElementById('authGcalConnectBtn');
+    if(authBtn) authBtn.addEventListener('click', ()=>connectGoogle('authGcalStatus', 'authGcalConnectLabel'));
+
+    // Setup guide link
+    const guideLink = document.getElementById('gcalSetupGuideLink');
+    if(guideLink) guideLink.addEventListener('click', e=>{
+      e.preventDefault();
+      const det = document.getElementById('gcalGuideDetails');
+      if(det) det.style.display = ''; // unhide, then open
+      setTimeout(()=>{ if(det) det.open = true; }, 50);
+    });
+
+    // Animate guide arrow
+    const guide = document.getElementById('gcalGuideDetails');
+    const arrow = document.getElementById('gcalGuideArrow');
+    if(guide && arrow){
+      guide.addEventListener('toggle', ()=>{
+        arrow.style.transform = guide.open ? 'rotate(90deg)' : 'rotate(0deg)';
+      });
+    }
+
+    // If already connected from a previous session, show the badge immediately
+    if(isConnected() && clientId()){
+      updateNavBadge(true);
+      updateConnectedCard();
+    }
+  });
+
+  // Show the auth gcal section once user has logged in
+  window._gcalOnLogin = function(){
+    updateAuthGcalSection();
+    const sect = document.getElementById('authGcalSection');
+    if(sect && clientId()) sect.style.display = 'block';
+  };
+
+})();
   // calendar scope needed to create the Daily Command calendar if it doesn't exist
   // calendar.events scope needed to push/delete events
   const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
@@ -11758,496 +12580,6 @@ async function _applyDataPack(raw){
     });
   }
 
-  // ── Get a valid token (reuse or re-request) ───────────────────────
-  async function getToken(){
-    if(_token && Date.now() < _token.expiry_ms) return _token.access_token;
-    return requestToken();
-  }
-
-  // ── Build Google Calendar event object from ICS VEVENT lines ─────
-  function icsDtToRfc(dtStr){
-    // dtStr like "20250604T083000" or "20250604" (date-only)
-    // After stripping non-digits "20250604T083000" → "20250604083000" (14 chars)
-    // Date occupies indices 0-7, time starts at index 8 (not 9 — the 'T' is gone)
-    const d = dtStr.replace(/[^\d]/g,'');
-    if(d.length === 8){
-      return d.substring(0,4)+'-'+d.substring(4,6)+'-'+d.substring(6,8);
-    }
-    return d.substring(0,4)+'-'+d.substring(4,6)+'-'+d.substring(6,8)+
-           'T'+d.substring(8,10)+':'+d.substring(10,12)+':'+d.substring(12,14);
-  }
-
-  function parseVevents(icsLines){
-    const events = [];
-    let ev = null;
-    let inAlarm = false;
-    for(const raw of icsLines){
-      const line = raw.trim();
-      if(line === 'BEGIN:VEVENT'){ ev = {}; inAlarm = false; continue; }
-      if(line === 'END:VEVENT'  ){ if(ev) events.push(ev); ev = null; inAlarm = false; continue; }
-      if(line === 'BEGIN:VALARM'){ inAlarm = true;  continue; }
-      if(line === 'END:VALARM'  ){ inAlarm = false; continue; }
-      if(!ev) continue;
-      const colon = line.indexOf(':');
-      if(colon < 0) continue;
-      const key = line.substring(0, colon).split(';')[0];
-      const val = line.substring(colon + 1);
-      if(inAlarm){
-        // Capture TRIGGER from inside VALARM so veventToGcal can use it
-        if(key === 'TRIGGER') ev['TRIGGER'] = val;
-        continue;
-      }
-      ev[key] = val;
-    }
-    return events;
-  }
-
-  function veventToGcal(ev){
-    const isDateOnly = (ev['DTSTART;VALUE=DATE'] || (!ev['DTSTART'] || !ev['DTSTART'].includes('T')));
-    let start, end;
-    if(isDateOnly){
-      const ds = ev['DTSTART;VALUE=DATE'] || ev['DTSTART'] || '';
-      const de = ev['DTEND;VALUE=DATE']   || ev['DTEND']   || '';
-      start = { date: icsDtToRfc(ds) };
-      end   = { date: icsDtToRfc(de) };
-    } else {
-      const tz = 'Europe/Sofia';
-      start = { dateTime: icsDtToRfc(ev['DTSTART']||''), timeZone: tz };
-      end   = { dateTime: icsDtToRfc(ev['DTEND']||''),   timeZone: tz };
-    }
-
-    const isReminder = (ev['UID']||'').endsWith('-reminder@dc');
-
-    // For all-day reminder events, read the VALARM trigger (e.g. "PT540M")
-    // and use that many minutes as the Google popup offset from the event start.
-    // This means iOS Calendar fires the notification at exactly the right time.
-    let popupMinutes = 10; // default: 10 min before for scheduled events
-    if(isReminder){
-      const trigger = ev['TRIGGER'] || '';
-      const triggerMatch = trigger.match(/PT(\d+)M/);
-      popupMinutes = triggerMatch ? parseInt(triggerMatch[1]) : 0;
-      // Google's popup "minutes" for all-day events counts back from midnight,
-      // but we want it to fire AT rmMin past midnight. Google Calendar's API
-      // for all-day reminders uses minutes before the start of the day (midnight),
-      // so a negative value fires after midnight. We express it as a negative offset:
-      // e.g. to fire at 9 AM (540 min after midnight), use minutes: -540
-      // Google docs: "minutes" can be negative for all-day events (fires after midnight).
-      popupMinutes = -popupMinutes;
-    }
-
-    const obj = {
-      summary: (ev['SUMMARY']||'').replace(/\\n/g,'\n').replace(/\\,/g,',').replace(/\\;/g,';'),
-      description: (ev['DESCRIPTION']||'').replace(/\\n/g,'\n').replace(/\\,/g,','),
-      start, end,
-      transparency: isReminder ? 'transparent' : 'opaque',
-      extendedProperties: { private: { source: 'daily_command', uid: ev['UID']||'' } },
-      reminders: { useDefault: false, overrides: [{ method:'popup', minutes: popupMinutes }] }
-    };
-    if(ev['STATUS'] === 'COMPLETED') obj.colorId = '2';
-    return obj;
-  }
-
-  // ── Google Batch HTTP API helper ─────────────────────────────────
-  // Sends up to 50 sub-requests in a single multipart HTTP call.
-  // Each sub-request counts as 1 quota unit, BUT the batch call itself
-  // is billed as only 1 HTTP request against the per-100s rate limiter,
-  // which is the quota we keep hitting.  Google allows max 100 per batch;
-  // we use 50 to stay conservative.
-  //
-  // Returns an array of { ok, status, body } objects, one per sub-request.
-  async function gcalBatch(token, subRequests, attempt=0){
-    const BOUNDARY = 'dc_batch_' + Date.now();
-    let body = '';
-    subRequests.forEach((req, idx) => {
-      body += `--${BOUNDARY}\r\n`;
-      body += `Content-Type: application/http\r\n`;
-      body += `Content-ID: <item-${idx}>\r\n\r\n`;
-      body += `${req.method} ${req.path} HTTP/1.1\r\n`;
-      if(req.json){
-        const jsonStr = JSON.stringify(req.json);
-        body += `Content-Type: application/json\r\n`;
-        body += `Content-Length: ${new TextEncoder().encode(jsonStr).length}\r\n\r\n`;
-        body += jsonStr + '\r\n';
-      } else {
-        body += '\r\n';
-      }
-    });
-    body += `--${BOUNDARY}--`;
-
-    const resp = await fetch('https://www.googleapis.com/batch/calendar/v3', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': `multipart/mixed; boundary=${BOUNDARY}`
-      },
-      body
-    });
-
-    // If the batch call itself is rate-limited, retry with backoff
-    if((resp.status === 429 || resp.status === 403) && attempt < 4){
-      const backoff = Math.min(3000 * Math.pow(2, attempt) + Math.random()*1000, 30000);
-      console.log(`[GCal batch] ${resp.status} attempt ${attempt+1}, retry in ${Math.round(backoff)}ms`);
-      await new Promise(r => setTimeout(r, backoff));
-      return gcalBatch(token, subRequests, attempt + 1);
-    }
-
-    if(!resp.ok){
-      const txt = await resp.text().catch(()=>'');
-      throw new Error(`Batch request failed ${resp.status}: ${txt.substring(0,200)}`);
-    }
-
-    // Parse the multipart response
-    const respText = await resp.text();
-    const respBoundary = (resp.headers.get('content-type')||'').match(/boundary=([^\s;]+)/)?.[1];
-    if(!respBoundary) return subRequests.map(()=>({ ok: false, status: 0, body: {} }));
-
-    const parts = respText.split('--' + respBoundary).slice(1); // skip preamble
-    return parts.slice(0, subRequests.length).map(part => {
-      // Each part: headers\r\n\r\nHTTP/1.1 STATUS\r\nheaders\r\n\r\nbody
-      const innerStart = part.indexOf('\r\n\r\n');
-      if(innerStart < 0) return { ok: false, status: 0, body: {} };
-      const inner = part.substring(innerStart + 4);
-      const statusLine = inner.match(/^HTTP\/\d+\.?\d*\s+(\d+)/);
-      const status = statusLine ? parseInt(statusLine[1]) : 0;
-      const bodyStart = inner.indexOf('\r\n\r\n');
-      let bodyObj = {};
-      if(bodyStart >= 0){
-        try { bodyObj = JSON.parse(inner.substring(bodyStart + 4)); } catch(e){}
-      }
-      return { ok: status >= 200 && status < 300, status, body: bodyObj };
-    });
-  }
-
-  // ── Push events via batch API (50 per batch call) ─────────────────
-  async function pushEventsBatch(token, calendarId, gcalEvents, onProgress){
-    const BATCH_SIZE = 50;
-    let pushed = 0, failed = 0;
-    const failLog = [];
-    const calPath = `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
-
-    for(let i = 0; i < gcalEvents.length; i += BATCH_SIZE){
-      const chunk = gcalEvents.slice(i, i + BATCH_SIZE);
-      const subRequests = chunk.map(ev => ({
-        method: 'POST',
-        path: calPath,
-        json: ev
-      }));
-
-      let results;
-      try {
-        results = await gcalBatch(token, subRequests);
-      } catch(err){
-        // Whole batch call failed — count all in chunk as failed
-        chunk.forEach(ev => {
-          failed++;
-          failLog.push(`${ev.summary}: ${err.message}`);
-          console.warn('[GCal batch fail]', ev.summary, err.message);
-        });
-        if(i + BATCH_SIZE < gcalEvents.length) await new Promise(r => setTimeout(r, 2000));
-        onProgress && onProgress(pushed, failed, gcalEvents.length);
-        continue;
-      }
-
-      results.forEach((res, j) => {
-        if(res.ok){
-          pushed++;
-        } else {
-          failed++;
-          const msg = res.body?.error?.message || `HTTP ${res.status}`;
-          failLog.push(`${chunk[j].summary}: ${msg}`);
-          console.warn('[GCal fail]', chunk[j].summary, msg);
-        }
-      });
-
-      onProgress && onProgress(pushed, failed, gcalEvents.length);
-      // 1 second between batch calls — generous gap, each batch call is cheap
-      if(i + BATCH_SIZE < gcalEvents.length) await new Promise(r => setTimeout(r, 1000));
-    }
-
-    return { pushed, failed, failLog };
-  }
-
-  // ── Delete events via batch API (50 per batch call) ───────────────
-  async function deleteEventsBatch(token, calendarId, eventIds){
-    const BATCH_SIZE = 50;
-    for(let i = 0; i < eventIds.length; i += BATCH_SIZE){
-      const chunk = eventIds.slice(i, i + BATCH_SIZE);
-      const subRequests = chunk.map(evId => ({
-        method: 'DELETE',
-        path: `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(evId)}`
-      }));
-      try {
-        await gcalBatch(token, subRequests);
-      } catch(e){
-        console.warn('[GCal delete batch fail]', e.message);
-      }
-      if(i + BATCH_SIZE < eventIds.length) await new Promise(r => setTimeout(r, 1000));
-    }
-  }
-
-  // ── Build habit lines (7 days) and activity lines (90 days) ────────
-  // Each VEVENT gets an X-DC-TYPE property so the sync can tag events
-  // with extendedProperties for clean de-duplication on future syncs.
-  function buildFutureLines(){
-    const lines = [];
-    const today = new Date();
-    const maxDays = Math.max(HABIT_DAYS, ACTIVITY_DAYS);
-    // Read reminder time from the shared selector (default 9 AM = 540 min)
-    const reminderSel = document.getElementById('mexReminderTime');
-    const reminderMinuteOfDay = reminderSel ? parseInt(reminderSel.value) : 540;
-    for(let i = 0; i < maxDays; i++){
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      const dayLines = _buildIcsDayLines(d, i < HABIT_DAYS ? reminderMinuteOfDay : undefined);
-      // Parse what _buildIcsDayLines returned and tag each VEVENT
-      // with X-DC-TYPE:habit or X-DC-TYPE:activity based on UID pattern.
-      // Habit UIDs look like "abc123-20250610@dc"
-      // Activity UIDs look like "act-uuid@dc" (no date segment)
-      let inside = false, uid = '', buf = [], isActivity = false;
-      for(const ln of dayLines){
-        if(ln === 'BEGIN:VEVENT'){ inside = true; uid = ''; buf = ['BEGIN:VEVENT']; isActivity = false; continue; }
-        if(inside && ln.startsWith('UID:')){ uid = ln.substring(4); }
-        if(inside && ln !== 'END:VEVENT'){ buf.push(ln); continue; }
-        if(ln === 'END:VEVENT' && inside){
-          // Activities have UIDs NOT matching the habit pattern (habitid-YYYYMMDD@dc)
-          isActivity = !/^.+-\d{8}@dc$/.test(uid) && !/-reminder@dc$/.test(uid);
-          const skip = !isActivity && i >= HABIT_DAYS; // skip habits beyond 7 days
-          if(!skip){
-            buf.push('X-DC-TYPE:' + (isActivity ? 'activity' : 'habit'));
-            buf.push('END:VEVENT');
-            lines.push(...buf);
-          }
-          inside = false; buf = [];
-          continue;
-        }
-        if(!inside) lines.push(ln);
-      }
-    }
-    return lines;
-  }
-
-  // ── Find or create the "Daily Command" calendar ─────────────────
-  async function getOrCreateDcCalendar(token){
-    const listResp = await fetch(
-      'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',
-      { headers: { 'Authorization': 'Bearer ' + token } }
-    );
-    if(!listResp.ok) throw new Error('Could not fetch calendar list');
-    const list = await listResp.json();
-    const existing = (list.items||[]).find(c =>
-      c.summary === 'Daily Command' && c.accessRole === 'owner'
-    );
-    if(existing) return existing.id;
-
-    // Create it
-    const createResp = await fetch(
-      'https://www.googleapis.com/calendar/v3/calendars',
-      { method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ summary: 'Daily Command', timeZone: 'Europe/Sofia' })
-      }
-    );
-    if(!createResp.ok) throw new Error('Could not create Daily Command calendar');
-    const cal = await createResp.json();
-    return cal.id;
-  }
-
-  // ── Delete all previously synced Daily Command events (clean slate) ─
-  async function clearDcEvents(token, calendarId){
-    const today = new Date();
-    const windowStart = new Date(today);
-    windowStart.setDate(today.getDate() - 1);
-    const windowEnd = new Date(today);
-    windowEnd.setDate(today.getDate() + ACTIVITY_DAYS + 5);
-
-    let pageToken = null;
-    const toDelete = [];
-    do {
-      let url = 'https://www.googleapis.com/calendar/v3/calendars/'
-        + encodeURIComponent(calendarId)
-        + '/events?maxResults=250&singleEvents=true'
-        + '&timeMin=' + windowStart.toISOString()
-        + '&timeMax=' + windowEnd.toISOString()
-        + '&privateExtendedProperty=source%3Ddaily_command';
-      if(pageToken) url += '&pageToken=' + pageToken;
-      const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-      if(!r.ok) break;
-      const data = await r.json();
-      (data.items||[]).forEach(ev => toDelete.push(ev.id));
-      pageToken = data.nextPageToken || null;
-    } while(pageToken);
-
-    if(toDelete.length > 0){
-      await deleteEventsBatch(token, calendarId, toDelete);
-    }
-    return toDelete.length;
-  }
-
-  // ── Main sync ─────────────────────────────────────────────────────
-  async function syncToGcal(silent=false){
-    if(_syncing) return;
-    _syncing = true;
-    const btn = document.getElementById('gcalSyncBtn');
-    if(btn) btn.disabled = true;
-    setProgress(0);
-    setStatus('Signing in…', 'var(--teal2)');
-
-    try {
-      const token = await getToken();
-      setProgress(5);
-
-      // ── Step 1: resolve or create "Daily Command" calendar ──────
-      setStatus('Finding Daily Command calendar…', 'var(--teal2)');
-      const calendarId = await getOrCreateDcCalendar(token);
-      setProgress(15);
-
-      // ── Step 2: remove old DC events to prevent duplicates ──────
-      setStatus('Cleaning up old events…', 'var(--teal2)');
-      const deleted = await clearDcEvents(token, calendarId);
-      setProgress(30);
-
-      // ── Step 3: build events ─────────────────────────────────────
-      setStatus('Building events…', 'var(--teal2)');
-      const lines   = buildFutureLines();
-      const vevents = parseVevents(lines);
-
-      if(vevents.length === 0){
-        setStatus('No events to sync (habits: ' + HABIT_DAYS + ' days, activities: as scheduled).', 'var(--muted)');
-        setProgress(0); _syncing = false; if(btn) btn.disabled = false; return;
-      }
-      setProgress(35);
-
-      // ── Step 4: push events via batch API ───────────────────────────
-      // Google Batch API: 50 inserts per HTTP call → ~2 calls for 70 events.
-      // Each batch call counts as 1 quota unit instead of 50.
-      setStatus(`Pushing ${vevents.length} events via batch…`, 'var(--teal2)');
-      const gcalEventsToSync = vevents.map(ev => {
-        const gcalEv = veventToGcal(ev);
-        gcalEv.extendedProperties = gcalEv.extendedProperties || { private: {} };
-        gcalEv.extendedProperties.private.source = 'daily_command';
-        gcalEv.extendedProperties.private.dcType = ev['X-DC-TYPE'] || 'habit';
-        gcalEv.extendedProperties.private.uid    = ev['UID'] || '';
-        return gcalEv;
-      });
-
-      const { pushed, failed, failLog } = await pushEventsBatch(
-        token, calendarId, gcalEventsToSync,
-        (p, f, total) => {
-          const pct = 35 + Math.round(((p + f) / total) * 60);
-          setProgress(Math.min(95, pct));
-          setStatus(`Pushed ${p}/${total}…`, 'var(--teal2)');
-        }
-      );
-
-      setProgress(100);
-      // Show first few failures on screen so we can diagnose
-      let msg;
-      if(failed > 0){
-        const sample = failLog.slice(0,3).join(' | ');
-        msg = `✓ ${pushed} synced, ${failed} failed. Errors: ${sample}`;
-      } else {
-        msg = `✓ ${pushed} events in Daily Command! (habits: ${HABIT_DAYS}d, activities: full schedule)`;
-      }
-      setStatus(msg, pushed > 0 ? 'var(--green)' : 'var(--amber)');
-      if(!silent) showToast(`📅 ${pushed} events → Daily Command calendar`);
-
-      const hint = document.getElementById('gcalIphoneHint');
-      if(!silent && hint) hint.style.display = 'block';
-      setTimeout(()=>setProgress(0), 2000);
-
-    } catch(err){
-      setStatus('✗ ' + err.message, 'var(--red)');
-      setProgress(0);
-    }
-
-    _syncing = false;
-    if(btn){ btn.disabled = false; _gcalUpdateBtn(); }
-  }
-
-  // ── Auto-sync state ──────────────────────────────────────────────
-  const KEY_AUTO_SYNC = 'dcmd_gcal_auto_sync';
-  let _autoSyncTimer = null;
-
-  function isAutoSyncOn(){
-    return localStorage.getItem(KEY_AUTO_SYNC) === '1';
-  }
-
-  function setAutoSyncStatus(msg, color){
-    const el = document.getElementById('gcalAutoSyncStatus');
-    if(el){ el.textContent = msg; el.style.color = color||'var(--muted)'; }
-  }
-
-  function showAutoSyncDot(visible){
-    const dot = document.getElementById('gcalAutoSyncDot');
-    if(dot) dot.style.display = visible ? 'inline-block' : 'none';
-  }
-
-  // Called by sd() after every save — debounced so rapid edits collapse
-  window._scheduleAutoSync = function(){
-    if(!isAutoSyncOn()) return;
-    const tokenOk = _token && Date.now() < _token.expiry_ms;
-    if(!tokenOk) return; // not signed in yet
-    clearTimeout(_autoSyncTimer);
-    showAutoSyncDot(true);
-    setAutoSyncStatus('Changes detected — syncing in 5s…', 'var(--teal2)');
-    _autoSyncTimer = setTimeout(async ()=>{
-      if(!isAutoSyncOn()) return;
-      setAutoSyncStatus('Auto-syncing…', 'var(--teal2)');
-      try {
-        await syncToGcal(true); // silent=true: no toast/hint during auto-sync
-        const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-        setAutoSyncStatus('Last auto-sync: ' + now, 'var(--muted)');
-      } catch(e){
-        setAutoSyncStatus('Auto-sync failed: ' + e.message, 'var(--red)');
-      }
-      showAutoSyncDot(false);
-    }, 5000); // 5s debounce so bursts of edits produce one sync
-  };
-
-  // ── Wire up button ────────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', ()=>{
-    _gcalUpdateBtn();
-    const btn = document.getElementById('gcalSyncBtn');
-    if(btn) btn.addEventListener('click', syncToGcal);
-
-    // Restore auto-sync toggle state
-    const toggle = document.getElementById('gcalAutoSyncToggle');
-    const row    = document.getElementById('gcalAutoSyncRow');
-    if(toggle){
-      toggle.checked = isAutoSyncOn();
-      toggle.addEventListener('change', ()=>{
-        localStorage.setItem(KEY_AUTO_SYNC, toggle.checked ? '1' : '0');
-        if(!toggle.checked){
-          clearTimeout(_autoSyncTimer);
-          showAutoSyncDot(false);
-          setAutoSyncStatus('', '');
-        } else {
-          setAutoSyncStatus('Auto-sync enabled — will sync after each change.', 'var(--teal2)');
-        }
-      });
-    }
-
-    // Animate guide arrow on expand/collapse
-    const guide = document.getElementById('gcalGuideDetails');
-    const arrow = document.getElementById('gcalGuideArrow');
-    if(guide && arrow){
-      guide.addEventListener('toggle', ()=>{
-        arrow.style.transform = guide.open ? 'rotate(90deg)' : 'rotate(0deg)';
-      });
-    }
-  });
-
-  // Show the auto-sync row only once signed in
-  const _origGcalUpdateBtn = window._gcalUpdateBtn;
-  window._gcalUpdateBtn = function(){
-    _origGcalUpdateBtn && _origGcalUpdateBtn();
-    const row = document.getElementById('gcalAutoSyncRow');
-    if(!row) return;
-    const tokenOk = _token && Date.now() < _token.expiry_ms;
-    row.style.display = tokenOk ? 'flex' : 'none';
-  };
-
-})();
 
 
 // ══════════════════════════════════════════════════════════════════
