@@ -5390,12 +5390,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
   border: 0.5px solid var(--border-hi);
   border-radius: var(--r-lg);
   box-shadow: 0 24px 80px rgba(0,0,0,0.75), 0 4px 20px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(31,122,140,0.18), var(--shadow-glow-teal);
-  animation: settingsDrop 0.28s cubic-bezier(0.16,1,0.3,1) both;
   scrollbar-width: thin; scrollbar-color: rgba(31,122,140,0.2) transparent;
 }
 .settings-panel::-webkit-scrollbar { width: 3px; }
 .settings-panel::-webkit-scrollbar-thumb { background: rgba(31,122,140,0.2); border-radius:2px; }
-.settings-panel.open { display: block; }
+.settings-panel.open { display: block; animation: settingsDrop 0.28s cubic-bezier(0.16,1,0.3,1) both; }
 
 @keyframes settingsDrop {
   from { opacity: 0; transform: translateY(-10px) scale(0.98); }
@@ -12042,24 +12041,28 @@ async function _applyDataPack(raw){
   async function getToken(interactive=false){
     if(_token && Date.now() < _token.expiry_ms) return _token.access_token;
     // If we have a stored connection, try silent refresh first
-    if(localStorage.getItem(KEY_CONNECTED) === '1' && !interactive){
+    if(localStorage.getItem(KEY_CONNECTED) === '1'){
       try {
         return await silentRefresh();
       } catch(e){
-        // Silent failed — need interactive
-        return requestToken();
+        // Silent refresh failed (common in browsers with 3rd-party cookie blocking)
+        // Only show interactive auth if explicitly requested (user clicked a button)
+        if(interactive) return requestToken();
+        // For background auto-sync: clear stale state and bail quietly
+        // The nav badge / connected card will update on next _gcalUpdateBtn call
+        throw new Error('Token expired — please reconnect Google Calendar in Settings');
       }
     }
-    return requestToken();
+    if(interactive) return requestToken();
+    throw new Error('Not authenticated');
   }
 
   // ── Connect button handler (interactive auth) ─────────────────────
   async function connectGoogle(statusElId, labelElId){
     const statusEl = statusElId ? document.getElementById(statusElId) : null;
-    const labelEl  = labelElId  ? document.getElementById(labelElId)  : null;
     if(statusEl){ statusEl.textContent = 'Opening Google sign-in…'; statusEl.style.color = 'var(--teal2)'; }
     try {
-      await requestToken(); // always interactive
+      await requestToken(); // always interactive — user explicitly clicked
       if(statusEl){ statusEl.textContent = '✓ Connected! Auto-sync is now active.'; statusEl.style.color = 'var(--green)'; }
       showToast('📅 Google Calendar connected — auto-sync on');
       _gcalUpdateBtn();
@@ -12379,7 +12382,7 @@ async function _applyDataPack(raw){
     }
 
     try {
-      const token = await getToken(false);
+      const token = await getToken(!silent); // interactive=true when user clicked the sync button
       setProgress(5);
 
       if(!silent) setStatus('Finding Daily Command calendar…', 'var(--teal2)');
@@ -12444,15 +12447,29 @@ async function _applyDataPack(raw){
       setTimeout(()=>setProgress(0), 2000);
 
     } catch(err){
-      setStatus('✗ ' + err.message, 'var(--red)');
-      setProgress(0);
-      if(silent) hideSyncingToast();
-      // If token expired, clear stored state so next sync triggers re-auth
-      if(err.message && (err.message.includes('401') || err.message.includes('invalid') || err.message.includes('unauthorized'))){
+      const needsReauth = err.message && (
+        err.message.includes('Token expired') ||
+        err.message.includes('Not authenticated') ||
+        err.message.includes('401') ||
+        err.message.includes('invalid') ||
+        err.message.includes('unauthorized')
+      );
+      if(needsReauth){
+        // Clear stale token state
         _token = null;
         localStorage.removeItem(KEY_CONNECTED);
         _gcalUpdateBtn();
+        if(silent){
+          setAutoSyncStatus('Session expired — open Settings to reconnect', 'var(--amber)');
+          hideSyncingToast();
+        } else {
+          setStatus('✗ Session expired — click "Connect Google Calendar" to reconnect', 'var(--amber)');
+        }
+      } else {
+        setStatus('✗ ' + err.message, 'var(--red)');
+        if(silent) hideSyncingToast();
       }
+      setProgress(0);
     }
 
     _syncing = false;
@@ -12541,6 +12558,7 @@ async function _applyDataPack(raw){
   };
 
 })();
+
 
 // ══════════════════════════════════════════════════════════════════
 // QUIZ ENGINE
