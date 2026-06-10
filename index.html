@@ -5767,7 +5767,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     <button class="nav-btn" data-page="quiz">Quiz</button>
   </div>
   <button class="nav-ai-btn" id="navAiPlanBtn" title="Plan today with AI"><span class="ai-dot"></span>AI Plan</button>
-  <div class="nav-profile-btn" id="navProfileBtn" title="Settings & account" onclick="if(typeof window.openSettings==='function'){var p=document.getElementById('settingsPanel');if(p&&p.classList.contains('open')){window.closeSettings();}else{window.openSettings();}}">
+  <div class="nav-profile-btn" id="navProfileBtn" title="Settings & account">
     <div class="nav-user-avatar" id="navUserAvatar">U</div>
     <span class="nav-user-name" id="navUserName"></span>
     <span class="gcal-nav-badge" id="gcalNavBadge" title="Google Calendar auto-sync active" style="pointer-events:none;"><span class="gcal-nav-dot"></span></span>
@@ -11695,89 +11695,88 @@ async function _applyDataPack(raw){
 
   // mobileSyncBtn removed from menu — sync is now via Settings & Account
 
+  // ── Helper: safe addEventListener (guards against missing elements crashing the IIFE) ──
+  function wire(id, evt, fn){
+    const el = document.getElementById(id);
+    if(el){ el.addEventListener(evt, fn); }
+    else { console.warn('[Settings] Element not found:', id); }
+  }
+
   // ── Gemini key save ─────────────────────────────────────────────────
-  document.getElementById('settingsKeyToggle').addEventListener('click',()=>{
+  wire('settingsKeyToggle','click',()=>{
     const inp = document.getElementById('settingsGeminiKey');
-    inp.type = inp.type==='password' ? 'text' : 'password';
+    if(inp) inp.type = inp.type==='password' ? 'text' : 'password';
   });
 
   // ── AssemblyAI key toggle/save ───────────────────────────────────────
-  document.getElementById('settingsAssemblyKeyToggle').addEventListener('click',()=>{
+  wire('settingsAssemblyKeyToggle','click',()=>{
     const inp = document.getElementById('settingsAssemblyKey');
-    inp.type = inp.type==='password' ? 'text' : 'password';
+    if(inp) inp.type = inp.type==='password' ? 'text' : 'password';
   });
-  document.getElementById('settingsSaveAssemblyKeyBtn').addEventListener('click',()=>{
-    const val = (document.getElementById('settingsAssemblyKey').value||'').trim();
+  wire('settingsSaveAssemblyKeyBtn','click',()=>{
+    const val = (document.getElementById('settingsAssemblyKey')?.value||'').trim();
     const st  = document.getElementById('settingsAssemblyKeyStatus');
     try{ if(val) localStorage.setItem('dcmd_assembly_apikey', val); else localStorage.removeItem('dcmd_assembly_apikey'); }catch(e){}
-    st.textContent = val ? '✓ Voice key saved.' : '✓ Key cleared — browser speech will be used.';
-    st.style.color = 'var(--green)';
-    setTimeout(()=>{ st.textContent=''; }, 2500);
+    if(st){ st.textContent = val ? '✓ Voice key saved.' : '✓ Key cleared — browser speech will be used.'; st.style.color = 'var(--green)'; setTimeout(()=>{ st.textContent=''; }, 2500); }
   });
-  document.getElementById('settingsSaveKeyBtn').addEventListener('click',()=>{
-    const val = (document.getElementById('settingsGeminiKey').value||'').trim();
+  wire('settingsSaveKeyBtn','click',()=>{
+    const val = (document.getElementById('settingsGeminiKey')?.value||'').trim();
     const st  = document.getElementById('settingsKeyStatus');
-    if(!val){
-      st.textContent='⚠ Key is empty.'; st.style.color='var(--red)'; return;
-    }
+    if(!val){ if(st){ st.textContent='⚠ Key is empty.'; st.style.color='var(--red)'; } return; }
     try{ localStorage.setItem(KEY_GEMINI, val); }catch(e){}
-    st.textContent='✓ Key saved.'; st.style.color='var(--green)';
-    setTimeout(()=>{ st.textContent=''; }, 2500);
+    if(st){ st.textContent='✓ Key saved.'; st.style.color='var(--green)'; setTimeout(()=>{ st.textContent=''; }, 2500); }
   });
 
   // ── AI Profile save / load / clear ────────────────────────────────
   const KEY_PROFILE = 'dcmd_ai_profile';
 
-  document.getElementById('settingsSaveProfileBtn').addEventListener('click',()=>{
-    const val = (document.getElementById('settingsProfileText').value||'').trim();
+  wire('settingsSaveProfileBtn','click',()=>{
+    const val = (document.getElementById('settingsProfileText')?.value||'').trim();
     const st  = document.getElementById('settingsProfileStatus');
     try{ localStorage.setItem(KEY_PROFILE, val); }catch(e){}
-    st.textContent = val ? '✓ Profile saved — AI will use it next time you plan.' : '✓ Profile cleared.';
-    st.style.color = 'var(--green)';
-    setTimeout(()=>{ st.textContent=''; }, 3000);
+    if(st){ st.textContent = val ? '✓ Profile saved — AI will use it next time you plan.' : '✓ Profile cleared.'; st.style.color = 'var(--green)'; setTimeout(()=>{ st.textContent=''; }, 3000); }
   });
 
-  document.getElementById('settingsClearProfileBtn').addEventListener('click',()=>{
-    document.getElementById('settingsProfileText').value = '';
+  wire('settingsClearProfileBtn','click',()=>{
+    const inp = document.getElementById('settingsProfileText');
+    if(inp) inp.value = '';
     const st = document.getElementById('settingsProfileStatus');
     try{ localStorage.removeItem(KEY_PROFILE); }catch(e){}
-    st.textContent = '✓ Profile cleared.'; st.style.color = 'var(--muted)';
-    setTimeout(()=>{ st.textContent=''; }, 2000);
+    if(st){ st.textContent = '✓ Profile cleared.'; st.style.color = 'var(--muted)'; setTimeout(()=>{ st.textContent=''; }, 2000); }
   });
 
-  document.getElementById('settingsProfileFile').addEventListener('change', e=>{
+  wire('settingsProfileFile','change', e=>{
     const file = e.target.files[0]; if(!file) return;
     const st = document.getElementById('settingsProfileStatus');
     const reader = new FileReader();
     reader.onload = ev => {
       const text = ev.target.result||'';
-      document.getElementById('settingsProfileText').value = text;
-      st.textContent = `✓ Loaded "${file.name}" — hit Save Profile to apply.`;
-      st.style.color = 'var(--teal2)';
+      const inp = document.getElementById('settingsProfileText');
+      if(inp) inp.value = text;
+      if(st){ st.textContent = `✓ Loaded "${file.name}" — hit Save Profile to apply.`; st.style.color = 'var(--teal2)'; }
     };
-    reader.onerror = ()=>{ st.textContent='⚠ Could not read file.'; st.style.color='var(--red)'; };
+    reader.onerror = ()=>{ if(st){ st.textContent='⚠ Could not read file.'; st.style.color='var(--red)'; } };
     reader.readAsText(file);
-    e.target.value = ''; // reset so same file can be re-loaded
+    e.target.value = '';
   });
 
   // ── Settings panel sync: export copy ──────────────────────────────
-  document.getElementById('spExportCopyBtn').addEventListener('click',async()=>{
+  wire('spExportCopyBtn','click',async()=>{
     const pack=_buildDataPack();
     if(!pack){showToast('⚠ Not logged in');return;}
     const st=document.getElementById('spExportStatus');
     try{
       await navigator.clipboard.writeText(pack);
-      st.textContent='✓ Copied! Paste on your other device.';
-      st.style.color='var(--green)';
+      if(st){ st.textContent='✓ Copied! Paste on your other device.'; st.style.color='var(--green)'; }
     }catch{
-      document.getElementById('spImportText').value=pack;
-      st.textContent='✓ Data shown below — select all and copy manually.';
-      st.style.color='var(--teal2)';
+      const imp=document.getElementById('spImportText');
+      if(imp) imp.value=pack;
+      if(st){ st.textContent='✓ Data shown below — select all and copy manually.'; st.style.color='var(--teal2)'; }
     }
   });
 
   // ── Settings panel sync: export download ─────────────────────────
-  document.getElementById('spExportDownloadBtn').addEventListener('click',()=>{
+  wire('spExportDownloadBtn','click',()=>{
     const pack=_buildDataPack();
     if(!pack){showToast('⚠ Not logged in');return;}
     const blob=new Blob([pack],{type:'application/json'});
@@ -11786,51 +11785,46 @@ async function _applyDataPack(raw){
     a.href=url;a.download=`daily_command_${_currentUser}_${new Date().toISOString().slice(0,10)}.json`;
     a.click();URL.revokeObjectURL(url);
     const st=document.getElementById('spExportStatus');
-    st.textContent='✓ Downloaded.'; st.style.color='var(--green)';
+    if(st){ st.textContent='✓ Downloaded.'; st.style.color='var(--green)'; }
   });
 
   // ── Settings panel sync: file input ──────────────────────────────
-  document.getElementById('spFileInput').addEventListener('change',e=>{
+  wire('spFileInput','change',e=>{
     const file=e.target.files[0];if(!file)return;
     const reader=new FileReader();
-    reader.onload=ev=>{document.getElementById('spImportText').value=ev.target.result||'';};
+    reader.onload=ev=>{ const imp=document.getElementById('spImportText'); if(imp) imp.value=ev.target.result||''; };
     reader.readAsText(file);
     e.target.value='';
   });
 
   // ── Settings panel sync: import ──────────────────────────────────
-  document.getElementById('spImportBtn').addEventListener('click', async ()=>{
-    const raw = document.getElementById('spImportText').value.trim();
+  wire('spImportBtn','click', async ()=>{
+    const raw = document.getElementById('spImportText')?.value.trim();
     const st  = document.getElementById('spImportStatus');
     const btn = document.getElementById('spImportBtn');
-    if(!raw){ st.textContent='⚠ Paste your data pack first.'; st.style.color='var(--red)'; return; }
-    btn.disabled = true;
-    st.textContent = 'Importing…'; st.style.color = 'var(--teal2)';
+    if(!raw){ if(st){ st.textContent='⚠ Paste your data pack first.'; st.style.color='var(--red)'; } return; }
+    if(btn) btn.disabled = true;
+    if(st){ st.textContent = 'Importing…'; st.style.color = 'var(--teal2)'; }
     const res = await _applyDataPack(raw);
-    btn.disabled = false;
-    if(!res.ok){ st.textContent = '✗ ' + res.msg; st.style.color = 'var(--red)'; return; }
-    // Cloud users: data is already saved to Supabase and UI re-rendered — just close
-    // Local users: data is in localStorage — also just close
-    st.textContent = '✓ Data imported and applied!';
-    st.style.color = 'var(--green)';
-    document.getElementById('spImportText').value = '';
+    if(btn) btn.disabled = false;
+    if(!res.ok){ if(st){ st.textContent = '✗ ' + res.msg; st.style.color = 'var(--red)'; } return; }
+    if(st){ st.textContent = '✓ Data imported and applied!'; st.style.color = 'var(--green)'; }
+    const imp=document.getElementById('spImportText');
+    if(imp) imp.value = '';
     setTimeout(()=>{ closeSettings(); showToast('✓ Import complete'); }, 1200);
   });
 
   // ── Settings logout ───────────────────────────────────────────────
-  document.getElementById('settingsLogoutBtn').addEventListener('click',()=>{
-    closeSettings(); _logout();
-  });
+  wire('settingsLogoutBtn','click',()=>{ closeSettings(); _logout(); });
 
   // ── Save gcal client id ───────────────────────────────────────────
-  document.getElementById('settingsSaveGcalClientIdBtn').addEventListener('click',()=>{
-    const val = (document.getElementById('settingsGcalClientId').value||'').trim();
+  wire('settingsSaveGcalClientIdBtn','click',()=>{
+    const val = (document.getElementById('settingsGcalClientId')?.value||'').trim();
     const st  = document.getElementById('gcalClientIdStatus');
-    if(!val){ st.textContent='⚠ Paste your Client ID first.'; st.style.color='var(--red)'; return; }
-    if(!val.endsWith('googleusercontent.com')){ st.textContent='⚠ Looks wrong — should end with googleusercontent.com'; st.style.color='var(--red)'; return; }
+    if(!val){ if(st){ st.textContent='⚠ Paste your Client ID first.'; st.style.color='var(--red)'; } return; }
+    if(!val.endsWith('googleusercontent.com')){ if(st){ st.textContent='⚠ Looks wrong — should end with googleusercontent.com'; st.style.color='var(--red)'; } return; }
     try{ localStorage.setItem('dcmd_gcal_client_id', val); }catch(e){}
-    st.textContent='✓ Client ID saved — you can now sign in.'; st.style.color='var(--green)';
-    setTimeout(()=>{ st.textContent=''; }, 3000);
+    if(st){ st.textContent='✓ Client ID saved — you can now sign in.'; st.style.color='var(--green)'; setTimeout(()=>{ st.textContent=''; }, 3000); }
     _gcalUpdateBtn();
   });
 
