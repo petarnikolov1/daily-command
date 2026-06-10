@@ -12330,16 +12330,30 @@ async function _applyDataPack(raw){
     return cal.id;
   }
 
-  // ── Delete old DC events ─────────────────────────────────────────
-  async function clearDcEvents(token, calendarId){
+  // ── Fingerprint a gcal event object for change detection ─────────
+  function fingerprintEvent(gcalEv){
+    const s = gcalEv.start;
+    const e = gcalEv.end;
+    return [
+      gcalEv.summary||'',
+      gcalEv.description||'',
+      s.dateTime||s.date||'',
+      e.dateTime||e.date||'',
+      gcalEv.transparency||'',
+      (gcalEv.reminders&&gcalEv.reminders.overrides&&gcalEv.reminders.overrides[0])
+        ? String(gcalEv.reminders.overrides[0].minutes) : '',
+      gcalEv.colorId||''
+    ].join('|');
+  }
+
+  // ── Fetch all existing DC events in the sync window ───────────────
+  async function fetchExistingDcEvents(token, calendarId){
     const today = new Date();
-    const windowStart = new Date(today);
-    windowStart.setDate(today.getDate() - 1);
-    const windowEnd = new Date(today);
-    windowEnd.setDate(today.getDate() + ACTIVITY_DAYS + 5);
+    const windowStart = new Date(today); windowStart.setDate(today.getDate() - 1);
+    const windowEnd   = new Date(today); windowEnd.setDate(today.getDate() + ACTIVITY_DAYS + 5);
 
     let pageToken = null;
-    const toDelete = [];
+    const existing = []; // { gcalId, uid, fingerprint }
     do {
       let url = 'https://www.googleapis.com/calendar/v3/calendars/'
         + encodeURIComponent(calendarId)
@@ -12351,17 +12365,48 @@ async function _applyDataPack(raw){
       const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
       if(!r.ok) break;
       const data = await r.json();
-      (data.items||[]).forEach(ev => toDelete.push(ev.id));
+      (data.items||[]).forEach(ev => {
+        const priv = (ev.extendedProperties||{}).private||{};
+        const uid  = priv.uid || '';
+        // Reconstruct comparable fingerprint from what Google stored
+        const s = ev.start||{};
+        const e = ev.end||{};
+        const overrides = (ev.reminders||{}).overrides||[];
+        const fp = [
+          ev.summary||'',
+          ev.description||'',
+          s.dateTime||s.date||'',
+          e.dateTime||e.date||'',
+          ev.transparency||'',
+          overrides.length ? String(overrides[0].minutes) : '',
+          ev.colorId||''
+        ].join('|');
+        existing.push({ gcalId: ev.id, uid, fingerprint: fp });
+      });
       pageToken = data.nextPageToken || null;
     } while(pageToken);
 
-    if(toDelete.length > 0){
-      await deleteEventsBatch(token, calendarId, toDelete);
-    }
-    return toDelete.length;
+    return existing;
   }
 
-  // ── Main sync ─────────────────────────────────────────────────────
+  // ── Patch (update) events via batch API ──────────────────────────
+  async function patchEventsBatch(token, calendarId, updates){
+    // updates: [{ gcalId, gcalEv }]
+    const BATCH_SIZE = 50;
+    const calBase = `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+    for(let i = 0; i < updates.length; i += BATCH_SIZE){
+      const chunk = updates.slice(i, i + BATCH_SIZE);
+      const subRequests = chunk.map(u => ({
+        method: 'PUT',
+        path: `${calBase}/${u.gcalId}`,
+        json: u.gcalEv
+      }));
+      try { await gcalBatch(token, subRequests); } catch(e){}
+      if(i + BATCH_SIZE < updates.length) await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
+  // ── Main sync — diff-based, only touch changed events ─────────────
   async function syncToGcal(silent=false){
     if(_syncing) return;
     _syncing = true;
@@ -12376,65 +12421,152 @@ async function _applyDataPack(raw){
     }
 
     try {
-      const token = await getToken(!silent); // interactive=true when user clicked the sync button
+      const token = await getToken(!silent);
       setProgress(5);
 
       if(!silent) setStatus('Finding Daily Command calendar…', 'var(--teal2)');
       const calendarId = await getOrCreateDcCalendar(token);
-      setProgress(15);
+      setProgress(12);
 
-      if(!silent) setStatus('Cleaning up old events…', 'var(--teal2)');
-      await clearDcEvents(token, calendarId);
-      setProgress(30);
-
+      // ── Build desired event set ──────────────────────────────────
       if(!silent) setStatus('Building events…', 'var(--teal2)');
-      const rawLines = buildFutureLines();
+      const rawLines     = buildFutureLines();
       const dedupedLines = dedupeVevents(rawLines);
-      const vevents  = parseVevents(dedupedLines);
+      const vevents      = parseVevents(dedupedLines);
+      setProgress(22);
 
-      if(vevents.length === 0){
-        setStatus('No events to sync.', 'var(--muted)');
-        setProgress(0); _syncing = false; if(btn){ btn.disabled = false; _gcalUpdateBtn(); }
-        hideSyncingToast();
-        return;
-      }
-      setProgress(35);
+      // ── Fetch what Google currently has ─────────────────────────
+      if(!silent) setStatus('Comparing with Google Calendar…', 'var(--teal2)');
+      const existingList = await fetchExistingDcEvents(token, calendarId);
+      setProgress(40);
 
-      if(!silent) setStatus(`Pushing ${vevents.length} events…`, 'var(--teal2)');
-      const gcalEventsToSync = vevents.map(ev => {
+      // Index existing by UID → { gcalId, fingerprint }
+      const existingByUid = new Map();
+      existingList.forEach(e => {
+        if(e.uid) existingByUid.set(e.uid, e);
+        // also index by gcalId for orphan cleanup
+      });
+
+      // Build desired map: uid → gcalEv object
+      const desiredByUid = new Map();
+      vevents.forEach(ev => {
+        const uid = ev['UID'] || '';
+        if(!uid) return;
         const gcalEv = veventToGcal(ev);
         gcalEv.extendedProperties = gcalEv.extendedProperties || { private: {} };
         gcalEv.extendedProperties.private.source = 'daily_command';
         gcalEv.extendedProperties.private.dcType = ev['X-DC-TYPE'] || 'habit';
-        gcalEv.extendedProperties.private.uid    = ev['UID'] || '';
-        return gcalEv;
+        gcalEv.extendedProperties.private.uid    = uid;
+        desiredByUid.set(uid, gcalEv);
       });
 
-      const { pushed, failed, failLog } = await pushEventsBatch(
-        token, calendarId, gcalEventsToSync,
-        (p, f, total) => {
-          const pct = 35 + Math.round(((p + f) / total) * 60);
-          setProgress(Math.min(95, pct));
-          if(!silent) setStatus(`Pushed ${p}/${total}…`, 'var(--teal2)');
+      // ── Compute diff ─────────────────────────────────────────────
+      const toInsert  = []; // gcalEv objects (new events)
+      const toUpdate  = []; // { gcalId, gcalEv } (changed events)
+      const toDelete  = []; // gcalId strings (orphans no longer in desired set)
+
+      // What to insert or update
+      desiredByUid.forEach((gcalEv, uid) => {
+        const fp = fingerprintEvent(gcalEv);
+        if(!existingByUid.has(uid)){
+          toInsert.push(gcalEv);
+        } else {
+          const ex = existingByUid.get(uid);
+          if(ex.fingerprint !== fp){
+            toUpdate.push({ gcalId: ex.gcalId, gcalEv });
+          }
+          // else: identical — skip entirely
         }
-      );
+      });
+
+      // What to delete (exists in Google but no longer desired)
+      existingByUid.forEach((ex, uid) => {
+        if(!desiredByUid.has(uid)){
+          toDelete.push(ex.gcalId);
+        }
+      });
+
+      setProgress(50);
+
+      const totalChanges = toInsert.length + toUpdate.length + toDelete.length;
+
+      if(totalChanges === 0){
+        setStatus('✓ Already up to date.', 'var(--green)');
+        setProgress(100);
+        if(silent){
+          const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+          showSyncingToast(`✓ No changes · ${now}`, true);
+          setAutoSyncStatus('Last sync: ' + now + ' (no changes)', 'var(--muted)');
+        }
+        setTimeout(()=>setProgress(0), 2000);
+        _syncing = false;
+        if(btn){ btn.disabled = false; _gcalUpdateBtn(); }
+        showAutoSyncDot(false);
+        return;
+      }
+
+      if(!silent) setStatus(`Applying ${totalChanges} changes (${toInsert.length} new, ${toUpdate.length} updated, ${toDelete.length} removed)…`, 'var(--teal2)');
+
+      // ── Apply changes in parallel-ish ────────────────────────────
+      let done = 0;
+      const tick = () => {
+        done++;
+        setProgress(50 + Math.round((done / totalChanges) * 45));
+      };
+
+      // Deletes
+      if(toDelete.length > 0){
+        await deleteEventsBatch(token, calendarId, toDelete);
+        toDelete.forEach(()=>tick());
+        setProgress(55);
+      }
+
+      // Updates (PATCH/PUT)
+      if(toUpdate.length > 0){
+        await patchEventsBatch(token, calendarId, toUpdate);
+        toUpdate.forEach(()=>tick());
+      }
+
+      // Inserts
+      let pushed = 0, failed = 0;
+      const failLog = [];
+      if(toInsert.length > 0){
+        const result = await pushEventsBatch(
+          token, calendarId, toInsert,
+          (p, f, total) => {
+            const pct = 70 + Math.round(((p + f) / total) * 25);
+            setProgress(Math.min(95, pct));
+            if(!silent) setStatus(`Inserting ${p}/${total} new events…`, 'var(--teal2)');
+          }
+        );
+        pushed = result.pushed;
+        failed = result.failed;
+        failLog.push(...result.failLog);
+      }
 
       setProgress(100);
+
+      const totalSynced = toUpdate.length + pushed + toDelete.length;
       let msg;
       if(failed > 0){
-        const sample = failLog.slice(0,3).join(' | ');
-        msg = `✓ ${pushed} synced, ${failed} failed. ${sample}`;
+        msg = `✓ ${totalSynced} changed, ${failed} failed. ${failLog.slice(0,2).join(' | ')}`;
+      } else if(totalChanges > 0){
+        const parts = [];
+        if(toInsert.length) parts.push(`${toInsert.length} new`);
+        if(toUpdate.length) parts.push(`${toUpdate.length} updated`);
+        if(toDelete.length) parts.push(`${toDelete.length} removed`);
+        msg = `✓ Synced: ${parts.join(', ')}`;
       } else {
-        msg = `✓ ${pushed} events in Daily Command! (${HABIT_DAYS}d habits + activities)`;
+        msg = '✓ Already up to date.';
       }
-      setStatus(msg, pushed > 0 ? 'var(--green)' : 'var(--amber)');
+      setStatus(msg, 'var(--green)');
 
       if(silent){
         const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-        showSyncingToast(`✓ Synced ${pushed} events · ${now}`, true);
+        showSyncingToast(`✓ ${totalChanges} change${totalChanges!==1?'s':''} synced · ${now}`, true);
         setAutoSyncStatus('Last sync: ' + now, 'var(--muted)');
       } else {
-        showToast(`📅 ${pushed} events → Daily Command calendar`);
+        showToast(`📅 ${msg}`);
         const hint = document.getElementById('gcalIphoneHint');
         if(hint) hint.style.display = 'block';
       }
@@ -12449,7 +12581,6 @@ async function _applyDataPack(raw){
         err.message.includes('unauthorized')
       );
       if(needsReauth){
-        // Clear stale token state
         _token = null;
         localStorage.removeItem(KEY_CONNECTED);
         _gcalUpdateBtn();
