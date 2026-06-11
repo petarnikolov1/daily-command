@@ -4650,26 +4650,41 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 .time-sel{
   position:absolute;opacity:0;pointer-events:none;width:0;height:0;
 }
-/* The visible drum display */
+/* The visible drum — hours get click-to-dropdown, minutes keep scroll/arrows */
 .tdr{
   display:flex;flex-direction:column;align-items:center;
-  cursor:ns-resize;user-select:none;
+  cursor:pointer;user-select:none;
   min-width:32px;padding:3px 2px;
   position:relative;
+  border-radius:5px;
+  transition:background .15s;
 }
+.tdr[data-type="m"]{ cursor:ns-resize; }
+.tdr:hover{ background:rgba(31,122,140,0.12); }
 .tdr-val{
   font-family:'JetBrains Mono',monospace;font-size:.95rem;font-weight:700;
   color:var(--text);line-height:1;letter-spacing:.01em;
   transition:transform .1s,opacity .1s;
 }
 .tdr-empty .tdr-val{ color:var(--muted); font-size:.75rem; }
-.tdr-arrows{display:flex;flex-direction:column;gap:1px;opacity:0;transition:opacity .15s;}
-.tdr:hover .tdr-arrows,.tdr:focus .tdr-arrows{opacity:1;}
+/* Hour drum: show a tiny caret instead of scroll arrows */
+.tdr[data-type="h"]::after{
+  content:'▾';
+  font-size:.5rem;color:var(--teal2);
+  line-height:1;opacity:0;transition:opacity .15s;
+  display:block;margin-top:1px;
+}
+.tdr[data-type="h"]:hover::after,
+.tdr[data-type="h"]:focus::after{ opacity:1; }
+.tdr[data-type="h"].tdr-open::after{ opacity:1;color:var(--teal3); }
+/* Minute drum: keep scroll arrows */
 .tdr-arr{
   background:none;border:none;padding:0;margin:0;cursor:pointer;
   color:var(--teal2);font-size:.5rem;line-height:1;display:block;text-align:center;
-  transition:color .15s;
+  transition:color .15s;opacity:0;
 }
+.tdr[data-type="m"]:hover .tdr-arr,
+.tdr[data-type="m"]:focus .tdr-arr{ opacity:1; }
 .tdr-arr:hover{color:#fff;}
 .time-colon{
   font-family:'JetBrains Mono',monospace;font-size:1rem;
@@ -4688,76 +4703,77 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 }
 .time-clear-btn:hover{border-color:var(--red);color:var(--red);background:var(--rdim);}
 
-/* ── GOOGLE CALENDAR STYLE TIME DROPDOWN ── */
-.tdr-gcal-list{
-  position:absolute;
-  top:calc(100% + 6px);
-  left:50%;
-  transform:translateX(-50%);
+/* ── GOOGLE CALENDAR STYLE TIME DROPDOWN (portal — fixed to body) ── */
+#tdrGcalPortal{
+  position:fixed;
+  z-index:99999;
   background:var(--s3);
   border:0.5px solid var(--border-hi);
   border-radius:var(--r-md);
-  box-shadow:0 12px 48px rgba(0,0,0,0.75), 0 4px 16px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(31,122,140,0.2);
-  backdrop-filter:blur(24px) saturate(1.4);
-  z-index:9999;
-  width:120px;
-  max-height:220px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.7), 0 2px 8px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(31,122,140,0.18);
+  backdrop-filter:blur(20px) saturate(1.4);
+  -webkit-backdrop-filter:blur(20px) saturate(1.4);
+  width:130px;
+  max-height:240px;
   overflow-y:auto;
+  overflow-x:hidden;
   scrollbar-width:thin;
-  scrollbar-color:rgba(31,122,140,0.25) transparent;
-  animation:tdrGcalIn 0.16s cubic-bezier(0.16,1,0.3,1) both;
+  scrollbar-color:rgba(31,122,140,0.3) transparent;
   padding:4px 0;
+  display:none;
 }
-.tdr-gcal-list::-webkit-scrollbar{width:3px;}
-.tdr-gcal-list::-webkit-scrollbar-thumb{background:rgba(31,122,140,0.25);border-radius:2px;}
+#tdrGcalPortal::-webkit-scrollbar{width:3px;}
+#tdrGcalPortal::-webkit-scrollbar-thumb{background:rgba(31,122,140,0.3);border-radius:2px;}
+#tdrGcalPortal.open{
+  display:block;
+  animation:tdrGcalIn 0.14s cubic-bezier(0.16,1,0.3,1) both;
+}
 @keyframes tdrGcalIn{
-  from{opacity:0;transform:translateX(-50%) scale(0.94) translateY(-4px);}
-  to{opacity:1;transform:translateX(-50%) scale(1) translateY(0);}
+  from{opacity:0;transform:scale(0.95) translateY(-4px);}
+  to{opacity:1;transform:scale(1) translateY(0);}
 }
 .tdr-gcal-item{
-  display:flex;align-items:center;
-  padding:6px 12px;
-  font-family:'JetBrains Mono',monospace;font-size:.72rem;
+  display:flex;align-items:baseline;
+  padding:7px 14px 7px 12px;
+  font-family:'JetBrains Mono',monospace;font-size:.75rem;
   color:var(--text-mid);
   cursor:pointer;
-  transition:background .1s, color .1s;
+  transition:background .08s, color .08s;
   white-space:nowrap;
-  gap:7px;
+  gap:4px;
   position:relative;
+  line-height:1.2;
 }
 .tdr-gcal-item:hover{
-  background:rgba(31,122,140,0.14);
-  color:var(--teal2);
+  background:rgba(31,122,140,0.15);
+  color:#fff;
 }
-.tdr-gcal-item.gcal-active{
-  background:rgba(31,122,140,0.18);
+.tdr-gcal-item.gcal-sel{
+  background:rgba(31,122,140,0.22);
   color:var(--teal2);
   font-weight:700;
 }
-.tdr-gcal-item.gcal-active::before{
+.tdr-gcal-item.gcal-sel::before{
   content:'';
-  position:absolute;left:0;top:20%;bottom:20%;
-  width:2.5px;background:var(--teal2);border-radius:0 2px 2px 0;
+  position:absolute;left:0;top:15%;bottom:15%;
+  width:2px;background:var(--teal2);border-radius:0 2px 2px 0;
 }
 .tdr-gcal-period{
-  font-size:.56rem;color:var(--muted);letter-spacing:.04em;
+  font-size:.6rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.04em;
 }
-/* Only the hour drum gets the gcal dropdown trigger — show caret */
-.tdr[data-type="h"]:focus-within,
-.tdr[data-type="h"]:hover{
-  /* subtle glow on focus */
-}
-/* Keyboard hint badge that appears near the drum on first focus */
+.tdr-gcal-item.gcal-sel .tdr-gcal-period{ color:var(--teal); }
+/* Keyboard hint on minute drum */
 .tdr-kbd-hint{
   position:absolute;
-  bottom:-18px;left:50%;transform:translateX(-50%);
-  font-family:'JetBrains Mono',monospace;font-size:.46rem;
+  bottom:-16px;left:50%;transform:translateX(-50%);
+  font-family:'JetBrains Mono',monospace;font-size:.44rem;
   color:var(--muted2);white-space:nowrap;
   pointer-events:none;letter-spacing:.04em;
-  opacity:0;transition:opacity .2s;
-  background:rgba(2,35,48,0.9);
+  opacity:0;transition:opacity .18s;
+  background:rgba(2,35,48,0.92);
   border:0.5px solid var(--border);
-  border-radius:4px;padding:2px 6px;z-index:10;
+  border-radius:3px;padding:1px 5px;z-index:10;
 }
 .tdr:focus .tdr-kbd-hint,.tdr:focus-within .tdr-kbd-hint{opacity:1;}
 
@@ -6897,14 +6913,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
       <div class="time-sel-wrap" data-wrap-h="dtpSH" data-wrap-m="dtpSM">
         <select class="time-sel" id="dtpSH" aria-label="start hour"></select>
         <select class="time-sel" id="dtpSM" aria-label="start minute"></select>
-        <div class="tdr" id="dtpSH-tdr" tabindex="0" data-sel="dtpSH" data-type="h" title="Click to pick hour · Scroll or ▲▼ · Type digits">
-          <button class="tdr-arr" data-dir="-1" data-sel="dtpSH" data-type="h" tabindex="-1">▲</button>
+        <div class="tdr" id="dtpSH-tdr" tabindex="0" data-sel="dtpSH" data-type="h" title="Click to pick hour · type digits">
           <span class="tdr-val">--</span>
-          <button class="tdr-arr" data-dir="1" data-sel="dtpSH" data-type="h" tabindex="-1">▼</button>
           <span class="tdr-kbd-hint">type digits</span>
         </div>
         <span class="time-colon">:</span>
-        <div class="tdr" id="dtpSM-tdr" tabindex="0" data-sel="dtpSM" data-type="m" title="Scroll or ▲▼ · Type digits">
+        <div class="tdr" id="dtpSM-tdr" tabindex="0" data-sel="dtpSM" data-type="m" title="Scroll · type digits">
           <button class="tdr-arr" data-dir="-1" data-sel="dtpSM" data-type="m" tabindex="-1">▲</button>
           <span class="tdr-val">00</span>
           <button class="tdr-arr" data-dir="1" data-sel="dtpSM" data-type="m" tabindex="-1">▼</button>
@@ -6917,10 +6931,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
       <div class="time-sel-wrap" data-wrap-h="dtpEH" data-wrap-m="dtpEM">
         <select class="time-sel" id="dtpEH" aria-label="end hour"></select>
         <select class="time-sel" id="dtpEM" aria-label="end minute"></select>
-        <div class="tdr" id="dtpEH-tdr" tabindex="0" data-sel="dtpEH" data-type="h" title="Click to pick hour · Scroll or ▲▼ · Type digits">
-          <button class="tdr-arr" data-dir="-1" data-sel="dtpEH" data-type="h" tabindex="-1">▲</button>
+        <div class="tdr" id="dtpEH-tdr" tabindex="0" data-sel="dtpEH" data-type="h" title="Click to pick hour · type digits">
           <span class="tdr-val">--</span>
-          <button class="tdr-arr" data-dir="1" data-sel="dtpEH" data-type="h" tabindex="-1">▼</button>
           <span class="tdr-kbd-hint">type digits</span>
         </div>
         <span class="time-colon">:</span>
@@ -8447,7 +8459,6 @@ function mkTimeSels(idH,idM,curHour,curMin){
   const mDisplay = String(parseInt(mVal)||0).padStart(2,'0');
   const hEmpty = hVal==='' ? ' tdr-empty' : '';
   const mEmpty = hVal==='' ? ' tdr-empty' : '';
-  // Hidden selects keep all read/write logic intact
   const hOpts=[`<option value="">--</option>`,...Array.from({length:24},(_,i)=>
     `<option value="${i}"${String(i)===hVal?' selected':''}>${String(i).padStart(2,'0')}</option>`)].join('');
   const mOpts=[0,5,10,15,20,25,30,35,40,45,50,55].map(m=>
@@ -8456,15 +8467,13 @@ function mkTimeSels(idH,idM,curHour,curMin){
     <select id="${idH}" class="time-sel" aria-label="hour">${hOpts}</select>
     <select id="${idM}" class="time-sel" aria-label="minute">${mOpts}</select>
     <div class="tdr${hEmpty}" id="${idH}-tdr" tabindex="0" data-sel="${idH}" data-type="h"
-         title="Click to pick hour · Scroll or ▲▼ · Type digits (e.g. 09)">
-      <button class="tdr-arr" data-dir="-1" data-sel="${idH}" data-type="h" tabindex="-1">▲</button>
+         title="Click to pick hour · or type digits (e.g. 09)">
       <span class="tdr-val">${hDisplay}</span>
-      <button class="tdr-arr" data-dir="1" data-sel="${idH}" data-type="h" tabindex="-1">▼</button>
       <span class="tdr-kbd-hint">type digits</span>
     </div>
     <span class="time-colon">:</span>
     <div class="tdr${mEmpty}" id="${idM}-tdr" tabindex="0" data-sel="${idM}" data-type="m"
-         title="Scroll or ▲▼ · Type digits (e.g. 30)">
+         title="Scroll · or type digits (e.g. 30)">
       <button class="tdr-arr" data-dir="-1" data-sel="${idM}" data-type="m" tabindex="-1">▲</button>
       <span class="tdr-val">${mDisplay}</span>
       <button class="tdr-arr" data-dir="1" data-sel="${idM}" data-type="m" tabindex="-1">▼</button>
@@ -8648,122 +8657,156 @@ function _tdrRefresh(selId, type){
 })();
 
 // ═══════════════════════════════════════════════════════════════════════
-// GOOGLE CALENDAR STYLE HOUR DROPDOWN
-// Opens on click of the hour (.tdr[data-type="h"]) showing a scrollable
-// list of all 24 hours, styled to match the blueprint theme.
+// GOOGLE CALENDAR STYLE HOUR DROPDOWN — portal rendered into document.body
+// No flicker: the portal sits outside all scrollable/overflow containers.
 // ═══════════════════════════════════════════════════════════════════════
 (function(){
-  let _gcalList = null;   // the active dropdown DOM node
-  let _gcalSelId = null;  // selId it's currently bound to
+  const portal   = document.getElementById('tdrGcalPortal');
+  let _selId     = null;   // currently open hour-select id
+  let _tdrEl     = null;   // the .tdr element that opened the dropdown
+  let _mouseInPortal = false;
 
-  function _fmtHour(h){
-    // Google Calendar style: "12 AM", "1 PM", "9 PM" etc.
-    if(h === 0)  return {main:'12', period:'AM'};
-    if(h < 12)   return {main:String(h), period:'AM'};
-    if(h === 12) return {main:'12', period:'PM'};
-    return {main:String(h-12), period:'PM'};
+  // ── Format hour Google Calendar style ────────────────────────────────
+  function _fmt(h){
+    if(h===0)  return {main:'12',period:'am'};
+    if(h<12)   return {main:String(h),period:'am'};
+    if(h===12) return {main:'12',period:'pm'};
+    return {main:String(h-12),period:'pm'};
   }
 
-  function _openGcal(tdrEl){
-    _closeGcal();
+  // ── Position portal below/above the tdr element ──────────────────────
+  function _position(tdrEl){
+    const r   = tdrEl.getBoundingClientRect();
+    const PW  = 130, PH = 240;
+    let top   = r.bottom + 5;
+    let left  = r.left + r.width/2 - PW/2;
+    // Flip up if not enough space below
+    if(top + PH > window.innerHeight - 8) top = r.top - PH - 5;
+    if(top < 8) top = 8;
+    if(left + PW > window.innerWidth - 8) left = window.innerWidth - PW - 8;
+    if(left < 8) left = 8;
+    portal.style.top  = top  + 'px';
+    portal.style.left = left + 'px';
+    portal.style.width = PW  + 'px';
+  }
+
+  // ── Build & open ─────────────────────────────────────────────────────
+  function _open(tdrEl){
+    _close();
     const selId = tdrEl.dataset.sel;
     const sel   = document.getElementById(selId);
     if(!sel) return;
 
-    _gcalSelId = selId;
-    const cur  = sel.value; // '' or '0'–'23'
+    _selId = selId;
+    _tdrEl = tdrEl;
+    tdrEl.classList.add('tdr-open');
 
-    const list = document.createElement('div');
-    list.className = 'tdr-gcal-list';
-    list.setAttribute('role','listbox');
+    const cur = sel.value; // '' or '0'–'23'
 
-    // Build items: "--" + 00–23
-    const items = [
-      {val:'', mainLabel:'—', period:'', label:'No time'}
+    // Build items — separator first then all 24 hours
+    const rows = [
+      {val:'', mainLabel:'—', period:'', title:'No time / clear'}
     ];
     for(let h=0;h<24;h++){
-      const {main,period} = _fmtHour(h);
-      items.push({val:String(h), mainLabel:main, period, label:`${String(h).padStart(2,'0')}:00`});
+      const {main,period} = _fmt(h);
+      rows.push({val:String(h), mainLabel:main, period});
     }
 
-    items.forEach(item=>{
-      const el = document.createElement('div');
-      el.className = 'tdr-gcal-item' + (item.val===cur?' gcal-active':'');
-      el.setAttribute('role','option');
-      el.setAttribute('aria-selected', item.val===cur?'true':'false');
-      el.dataset.val = item.val;
-      el.innerHTML = `<span style="min-width:22px;text-align:right;">${item.mainLabel}</span>`
-        + (item.period ? `<span class="tdr-gcal-period">${item.period}</span>` : `<span class="tdr-gcal-period">${item.period}</span>`);
-      el.addEventListener('mousedown', ev=>{
-        ev.preventDefault(); ev.stopPropagation();
-        sel.value = item.val;
-        _tdrRefresh(selId, 'h');
-        sel.dispatchEvent(new Event('change',{bubbles:true}));
-        _closeGcal();
-        // Advance to minute drum
+    portal.innerHTML = rows.map(row=>{
+      const isSel = row.val === cur;
+      return `<div class="tdr-gcal-item${isSel?' gcal-sel':''}" data-val="${row.val}" role="option" aria-selected="${isSel}">
+        <span style="min-width:20px;text-align:right;font-variant-numeric:tabular-nums;">${row.mainLabel}</span>
+        ${row.period?`<span class="tdr-gcal-period">${row.period}</span>`:''}
+      </div>`;
+    }).join('');
+
+    // Wire item clicks — use click (not mousedown) to avoid double-fire
+    portal.querySelectorAll('.tdr-gcal-item').forEach(item=>{
+      item.addEventListener('click', e=>{
+        e.stopPropagation();
+        const v = item.dataset.val;
+        if(sel){ sel.value=v; _tdrRefresh(selId,'h'); sel.dispatchEvent(new Event('change',{bubbles:true})); }
+        _close();
+        // Auto-advance focus to minute drum
         const wrap = tdrEl.closest('.time-sel-wrap');
-        if(wrap){
-          const mSelId = wrap.dataset.wrapM;
-          const mTdr = document.getElementById(mSelId+'-tdr');
-          if(mTdr) mTdr.focus();
-        }
+        if(wrap){ const mId=wrap.dataset.wrapM; document.getElementById(mId+'-tdr')?.focus(); }
       });
-      list.appendChild(el);
     });
 
-    tdrEl.style.position = 'relative';
-    tdrEl.appendChild(list);
-    _gcalList = list;
+    _position(tdrEl);
+    portal.classList.add('open');
 
-    // Scroll active item into view
-    const active = list.querySelector('.gcal-active');
-    if(active){
-      requestAnimationFrame(()=>active.scrollIntoView({block:'nearest',behavior:'instant'}));
-    }
+    // Scroll selected item into centre
+    const selItem = portal.querySelector('.gcal-sel');
+    if(selItem) requestAnimationFrame(()=>{
+      selItem.scrollIntoView({block:'center',behavior:'instant'});
+    });
   }
 
-  function _closeGcal(){
-    if(_gcalList){ _gcalList.remove(); _gcalList=null; _gcalSelId=null; }
+  // ── Close ─────────────────────────────────────────────────────────────
+  function _close(){
+    if(!_selId) return;
+    portal.classList.remove('open');
+    portal.innerHTML = '';
+    if(_tdrEl) _tdrEl.classList.remove('tdr-open');
+    _selId = null; _tdrEl = null;
   }
 
-  // Open on click of the hour drum value span (not the arrow buttons)
+  // ── Track mouse inside portal to suppress spurious close ─────────────
+  portal.addEventListener('mouseenter', ()=>{ _mouseInPortal=true; });
+  portal.addEventListener('mouseleave', ()=>{ _mouseInPortal=false; });
+
+  // ── Click on hour drum — toggle dropdown ─────────────────────────────
+  // Use capture=true so we intercept before the scroll-close listener below
   document.addEventListener('click', e=>{
-    const tdr = e.target.closest('.tdr');
-    if(tdr && tdr.dataset.type==='h' && !e.target.closest('.tdr-arr')){
-      if(_gcalSelId === tdr.dataset.sel){
-        _closeGcal(); return; // toggle off
-      }
-      e.stopPropagation();
-      _openGcal(tdr);
+    const tdr = e.target.closest('.tdr[data-type="h"]');
+
+    if(tdr){
+      // Toggle: if this drum is already open, close it
+      if(_selId === tdr.dataset.sel){ _close(); return; }
+      _open(tdr);
       tdr.focus();
       return;
     }
-    // Click outside closes
-    if(_gcalList && !e.target.closest('.tdr-gcal-list')){ _closeGcal(); }
+
+    // Click outside both the portal and any hour drum → close
+    if(_selId && !_mouseInPortal){ _close(); }
   }, true);
 
-  // Close on Escape
+  // ── Re-position on window resize ─────────────────────────────────────
+  window.addEventListener('resize', ()=>{ if(_tdrEl) _position(_tdrEl); });
+
+  // ── Close on scroll (anchor would drift) — but not portal's own scroll ─
+  document.addEventListener('scroll', e=>{
+    if(e.target === portal) return; // portal scrolling is fine
+    if(_selId) _close();
+  }, true);
+
+  // ── Keyboard while portal is open ────────────────────────────────────
   document.addEventListener('keydown', e=>{
-    if(e.key==='Escape' && _gcalList){ _closeGcal(); }
-    // Keyboard navigation within the open list
-    if(_gcalList && (e.key==='ArrowDown'||e.key==='ArrowUp')){
-      const items = [..._gcalList.querySelectorAll('.tdr-gcal-item')];
-      const cur = _gcalList.querySelector('.gcal-active');
-      let idx = cur ? items.indexOf(cur) : -1;
-      idx = e.key==='ArrowDown' ? Math.min(items.length-1,idx+1) : Math.max(0,idx-1);
-      items.forEach((it,i)=>it.classList.toggle('gcal-active',i===idx));
+    if(!_selId) return;
+    const items = [...portal.querySelectorAll('.tdr-gcal-item')];
+    const cur   = portal.querySelector('.gcal-sel');
+    let idx     = cur ? items.indexOf(cur) : -1;
+
+    if(e.key==='Escape'){ _close(); e.preventDefault(); return; }
+    if(e.key==='ArrowDown'){
+      idx = Math.min(items.length-1, idx+1);
+      items.forEach((it,i)=>it.classList.toggle('gcal-sel',i===idx));
       items[idx]?.scrollIntoView({block:'nearest',behavior:'smooth'});
-      e.preventDefault();
+      e.preventDefault(); return;
     }
-    if(_gcalList && e.key==='Enter'){
-      const active = _gcalList.querySelector('.gcal-active');
-      if(active) active.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));
-      e.preventDefault();
+    if(e.key==='ArrowUp'){
+      idx = Math.max(0, idx-1);
+      items.forEach((it,i)=>it.classList.toggle('gcal-sel',i===idx));
+      items[idx]?.scrollIntoView({block:'nearest',behavior:'smooth'});
+      e.preventDefault(); return;
+    }
+    if(e.key==='Enter'&&idx>=0){
+      items[idx].click();
+      e.preventDefault(); return;
     }
   });
-
-  // Close on scroll outside (popover would drift)
-  document.addEventListener('scroll', ()=>_closeGcal(), true);
 })();
 // ═══════════════════════════════════════════════════════════════════════
 let _addingActivity=false;
@@ -15167,6 +15210,8 @@ EXACT FORMAT:
 
 })();
 
-</script>
+</script><!-- GCal hour dropdown portal — lives on body to escape any overflow:hidden parent -->
+<div id="tdrGcalPortal" role="listbox" aria-label="Select hour"></div>
+
 </body>
 </html>
