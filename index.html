@@ -5572,14 +5572,21 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 }
 .gcal-syncing-toast{
   position:fixed;bottom:calc(var(--nav-h) + 16px);right:16px;
-  background:var(--s3);border:0.5px solid rgba(46,196,165,0.4);
-  border-radius:var(--r-sm);padding:8px 14px;
-  font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--green);
-  box-shadow:var(--shadow-md);
-  display:none;align-items:center;gap:7px;z-index:300;
-  animation:gcalToastIn .3s cubic-bezier(0.16,1,0.3,1) both;
+  background:var(--s3);border:0.5px solid rgba(31,122,140,0.45);
+  border-radius:var(--r-md);padding:10px 14px 10px;
+  font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--text-mid);
+  box-shadow:var(--shadow-md),0 0 0 0.5px rgba(31,122,140,0.12);
+  display:none;flex-direction:column;gap:6px;z-index:300;min-width:220px;max-width:280px;
+  animation:gcalToastIn .25s cubic-bezier(0.16,1,0.3,1) both;
 }
-@keyframes gcalToastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.gcal-toast-row{display:flex;align-items:center;gap:7px;}
+.gcal-toast-phase{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gcal-toast-pct{color:var(--muted);font-size:.6rem;flex-shrink:0;min-width:28px;text-align:right;}
+.gcal-toast-track{width:100%;height:2px;background:var(--border);border-radius:1px;overflow:hidden;}
+.gcal-toast-bar{height:100%;width:0%;border-radius:1px;transition:width 0.35s ease,background 0.4s;
+  background:linear-gradient(90deg,var(--teal),var(--teal2));}
+.gcal-toast-bar.done{background:linear-gradient(90deg,var(--green),#2ec4a5);}
+@keyframes gcalToastIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 
 .settings-save-key-btn:hover {
   background: linear-gradient(135deg, rgba(31,122,140,0.34), rgba(44,165,191,0.2));
@@ -6767,8 +6774,14 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 
 <div class="toast" id="toast"></div>
 <div class="gcal-syncing-toast" id="gcalSyncingToast">
-  <span style="animation:gcalPulse 1.2s ease-in-out infinite;display:inline-block;">📅</span>
-  <span id="gcalSyncingToastMsg">Syncing to Google Calendar…</span>
+  <div class="gcal-toast-row">
+    <span id="gcalToastIcon" style="animation:gcalPulse 1.2s ease-in-out infinite;display:inline-block;font-size:.9rem;">📅</span>
+    <span class="gcal-toast-phase" id="gcalSyncingToastMsg">Syncing…</span>
+    <span class="gcal-toast-pct" id="gcalToastPct"></span>
+  </div>
+  <div class="gcal-toast-track">
+    <div class="gcal-toast-bar" id="gcalToastBar"></div>
+  </div>
 </div>
 
 <!-- ── DAY TIME PICKER POPOVER ── -->
@@ -11851,16 +11864,32 @@ async function _applyDataPack(raw){
   function setStatus(msg, color){
     const el = document.getElementById('gcalStatus');
     if(el){ el.textContent = msg; el.style.color = color||'var(--muted)'; }
+    // Also update the toast phase text while syncing silently
+    const toast = document.getElementById('gcalSyncingToast');
+    if(toast && toast.style.display === 'flex'){
+      const msgEl = document.getElementById('gcalSyncingToastMsg');
+      if(msgEl && msgEl.style.color !== 'var(--green)'){
+        // Strip leading ✓/✗ and keep it concise for the toast
+        const clean = msg.replace(/^[✓✗]\s*/,'').split('(')[0].trim();
+        msgEl.textContent = clean.length > 38 ? clean.slice(0,36) + '…' : clean;
+      }
+    }
   }
   function setLabel(txt){
     const el = document.getElementById('gcalSyncLabel');
     if(el) el.textContent = txt;
   }
   function setProgress(pct){
+    // Settings panel bar
     const bar  = document.getElementById('gcalProgressBar');
     const wrap = document.getElementById('gcalProgress');
     if(wrap) wrap.style.display = pct > 0 ? 'block' : 'none';
     if(bar)  bar.style.width = pct + '%';
+    // Toast bar
+    const tBar = document.getElementById('gcalToastBar');
+    const tPct = document.getElementById('gcalToastPct');
+    if(tBar){ tBar.style.width = pct + '%'; }
+    if(tPct){ tPct.textContent = pct > 0 && pct < 100 ? pct + '%' : ''; }
   }
   function clientId(){ return (localStorage.getItem(KEY_CLIENT_ID)||'').trim(); }
 
@@ -11869,16 +11898,35 @@ async function _applyDataPack(raw){
   function showSyncingToast(msg, done=false){
     const toast = document.getElementById('gcalSyncingToast');
     const msgEl = document.getElementById('gcalSyncingToastMsg');
+    const icon  = document.getElementById('gcalToastIcon');
+    const tBar  = document.getElementById('gcalToastBar');
+    const tPct  = document.getElementById('gcalToastPct');
     if(!toast) return;
     if(msgEl) msgEl.textContent = msg;
     toast.style.display = 'flex';
-    if(_toastTimeout) clearTimeout(_toastTimeout);
+    if(_toastTimeout){ clearTimeout(_toastTimeout); _toastTimeout = null; }
     if(done){
+      // Complete state: full green bar, no animation, auto-hide
+      if(tBar){ tBar.style.width = '100%'; tBar.classList.add('done'); }
+      if(tPct){ tPct.textContent = ''; }
+      if(icon){ icon.style.animation = 'none'; icon.textContent = '✓'; icon.style.color = 'var(--green)'; }
       toast.style.borderColor = 'rgba(46,196,165,0.5)';
+      msgEl.style.color = 'var(--green)';
       _toastTimeout = setTimeout(()=>{
         toast.style.display = 'none';
         toast.style.borderColor = '';
-      }, 2800);
+        // reset for next run
+        if(tBar){ tBar.style.width = '0%'; tBar.classList.remove('done'); }
+        if(icon){ icon.style.animation = 'gcalPulse 1.2s ease-in-out infinite'; icon.textContent = '📅'; icon.style.color = ''; }
+        if(msgEl){ msgEl.style.color = ''; }
+      }, 3000);
+    } else {
+      // In-progress state: reset bar to 0, restore pulse
+      if(tBar){ tBar.style.width = '0%'; tBar.classList.remove('done'); }
+      if(tPct){ tPct.textContent = ''; }
+      if(icon){ icon.style.animation = 'gcalPulse 1.2s ease-in-out infinite'; icon.textContent = '📅'; icon.style.color = ''; }
+      toast.style.borderColor = '';
+      if(msgEl) msgEl.style.color = '';
     }
   }
   function hideSyncingToast(){
