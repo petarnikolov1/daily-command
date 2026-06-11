@@ -11852,9 +11852,24 @@ async function _applyDataPack(raw){
   const KEY_CONNECTED  = 'dcmd_gcal_connected';    // '1' once first auth succeeds
   const KEY_USER_EMAIL = 'dcmd_gcal_email';        // display email after connect
   const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
-  let _token    = null;   // { access_token, expiry_ms }
   let _syncing  = false;
   let _autoSyncTimer = null;
+  const KEY_TOKEN = 'dcmd_gcal_token_v2';
+
+  // Persist token to sessionStorage so it survives within tab without re-authing
+  function _saveToken(t){ try{ sessionStorage.setItem(KEY_TOKEN, JSON.stringify(t)); }catch(e){} }
+  function _clearToken(){ try{ sessionStorage.removeItem(KEY_TOKEN); }catch(e){} }
+  function _loadToken(){
+    try{
+      const raw = sessionStorage.getItem(KEY_TOKEN);
+      if(!raw) return null;
+      const t = JSON.parse(raw);
+      if(t && t.expiry_ms && Date.now() < t.expiry_ms) return t;
+      sessionStorage.removeItem(KEY_TOKEN);
+    }catch(e){}
+    return null;
+  }
+  let _token = _loadToken();  // restore from session on page load
 
   // ── Sync window constants ─────────────────────────────────────────
   const HABIT_DAYS    = 7;
@@ -12042,6 +12057,7 @@ async function _applyDataPack(raw){
         callback: (resp) => {
           if(resp.error){ reject(new Error(resp.error_description || resp.error)); return; }
           _token = { access_token: resp.access_token, expiry_ms: Date.now() + (resp.expires_in - 30)*1000 };
+          _saveToken(_token);
           // Persist connection state
           localStorage.setItem(KEY_CONNECTED, '1');
           // Try to get user email via token info
@@ -12070,6 +12086,7 @@ async function _applyDataPack(raw){
         callback: (resp) => {
           if(resp.error || !resp.access_token){ reject(new Error(resp.error||'no token')); return; }
           _token = { access_token: resp.access_token, expiry_ms: Date.now() + (resp.expires_in - 30)*1000 };
+          _saveToken(_token);
           localStorage.setItem(KEY_CONNECTED, '1');
           _gcalUpdateBtn();
           resolve(_token.access_token);
@@ -12081,19 +12098,20 @@ async function _applyDataPack(raw){
 
   // ── Get a valid token (reuse → silent refresh → interactive) ─────
   async function getToken(interactive=false){
+    // 1. In-memory cache
     if(_token && Date.now() < _token.expiry_ms) return _token.access_token;
-    // If we have a stored connection, try silent refresh first
+    // 2. sessionStorage cache (survives page reload within same tab)
+    const stored = _loadToken();
+    if(stored){ _token = stored; return _token.access_token; }
+    // 3. Token truly expired/missing — only do OAuth if connected flag is set
     if(localStorage.getItem(KEY_CONNECTED) === '1'){
-      try {
-        return await silentRefresh();
-      } catch(e){
-        // Silent refresh failed (common in browsers with 3rd-party cookie blocking)
-        // Only show interactive auth if explicitly requested (user clicked a button)
-        if(interactive) return requestToken();
-        // For background auto-sync: clear stale state and bail quietly
-        // The nav badge / connected card will update on next _gcalUpdateBtn call
-        throw new Error('Token expired — please reconnect Google Calendar in Settings');
+      // For silent background syncs: do NOT trigger any UI or popup
+      // Just throw so auto-sync skips gracefully until user manually re-auths
+      if(!interactive){
+        throw new Error('Session expired — open Settings to reconnect Google Calendar');
       }
+      // User clicked sync button — interactive auth is OK
+      return requestToken();
     }
     if(interactive) return requestToken();
     throw new Error('Not authenticated');
@@ -12547,10 +12565,10 @@ async function _applyDataPack(raw){
       if(totalChanges === 0){
         setStatus('✓ Already up to date.', 'var(--green)');
         setProgress(100);
+        const now0 = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
         if(silent){
-          const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-          showSyncingToast(`✓ No changes · ${now}`, true);
-          setAutoSyncStatus('Last sync: ' + now + ' (no changes)', 'var(--muted)');
+          showSyncingToast(`✓ No changes · ${now0}`, true);
+          setAutoSyncStatus('Last sync: ' + now0 + ' (no changes)', 'var(--muted)');
         }
         setTimeout(()=>setProgress(0), 2000);
         _syncing = false;
@@ -12636,6 +12654,7 @@ async function _applyDataPack(raw){
       );
       if(needsReauth){
         _token = null;
+        _clearToken();
         localStorage.removeItem(KEY_CONNECTED);
         _gcalUpdateBtn();
         if(silent){
@@ -12692,23 +12711,19 @@ async function _applyDataPack(raw){
       }
     }, 1000);
 
-    // Pre-warm token in the background during the countdown window
-    // so by the time 5s fires, the OAuth round-trip is already done
-    setTimeout(async ()=>{
-      try {
-        if(!(_token && Date.now() < _token.expiry_ms)){
-          await silentRefresh();
-        }
-      } catch(e){ /* will retry at sync time */ }
-    }, 200);
-
     _autoSyncTimer = setTimeout(async ()=>{
       clearInterval(_countdownTimer);
       setAutoSyncStatus('Syncing…', 'var(--teal2)');
       try {
         await syncToGcal(true);
+        // setAutoSyncStatus is updated inside syncToGcal on success
       } catch(e){
-        setAutoSyncStatus('Auto-sync failed: ' + e.message, 'var(--red)');
+        const errMsg = e.message || 'Unknown error';
+        if(errMsg.includes('expired') || errMsg.includes('reconnect')){
+          setAutoSyncStatus('Session expired — reconnect in Settings', 'var(--amber)');
+        } else {
+          setAutoSyncStatus('Sync failed: ' + errMsg.substring(0,60), 'var(--red)');
+        }
       }
       showAutoSyncDot(false);
     }, 5000);
