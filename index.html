@@ -12044,77 +12044,70 @@ async function _applyDataPack(raw){
   };
 
   // ── Request OAuth token via GSI ───────────────────────────────────
+  // ── Token management ─────────────────────────────────────────────
+  // Rule: NEVER call requestAccessToken except when the user explicitly
+  // clicks "Connect". After first auth, token lives in memory + sessionStorage.
+  // Background auto-sync ONLY uses cached token — never triggers OAuth UI.
+
+  let _tokenClient = null; // reuse single GSI token client instance
+
+  function _getTokenClient(onSuccess, onError){
+    if(!window.google || !window.google.accounts){
+      onError(new Error('Google Identity Services not loaded')); return;
+    }
+    const cid = clientId();
+    if(!cid){ onError(new Error('No Client ID saved — add one in Settings → Google Calendar')); return; }
+    _tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: cid,
+      scope: SCOPES,
+      callback: (resp) => {
+        if(resp.error || !resp.access_token){
+          onError(new Error(resp.error_description || resp.error || 'Auth failed')); return;
+        }
+        _token = { access_token: resp.access_token, expiry_ms: Date.now() + (resp.expires_in - 60)*1000 };
+        _saveToken(_token);
+        localStorage.setItem(KEY_CONNECTED, '1');
+        // grab email once, fire-and-forget
+        fetch('https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + _token.access_token)
+          .then(r=>r.json()).then(info=>{ if(info.email) localStorage.setItem(KEY_USER_EMAIL, info.email); })
+          .catch(()=>{}).finally(()=>_gcalUpdateBtn());
+        onSuccess(_token.access_token);
+      }
+    });
+    return _tokenClient;
+  }
+
+  // Interactive auth — only called when user explicitly clicks Connect/Sync
   function requestToken(){
     return new Promise((resolve, reject) => {
-      if(!window.google || !window.google.accounts){
-        reject(new Error('Google Identity Services not loaded yet. Try again in a moment.')); return;
-      }
-      const cid = clientId();
-      if(!cid){ reject(new Error('No Client ID saved. Go to Settings → Google Calendar to add one.')); return; }
-      const client = google.accounts.oauth2.initTokenClient({
-        client_id: cid,
-        scope: SCOPES,
-        callback: (resp) => {
-          if(resp.error){ reject(new Error(resp.error_description || resp.error)); return; }
-          _token = { access_token: resp.access_token, expiry_ms: Date.now() + (resp.expires_in - 30)*1000 };
-          _saveToken(_token);
-          // Persist connection state
-          localStorage.setItem(KEY_CONNECTED, '1');
-          // Try to get user email via token info
-          fetch('https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + _token.access_token)
-            .then(r=>r.json()).then(info=>{
-              if(info.email){ localStorage.setItem(KEY_USER_EMAIL, info.email); }
-              _gcalUpdateBtn();
-            }).catch(()=>{ _gcalUpdateBtn(); });
-          resolve(_token.access_token);
-        }
-      });
-      client.requestAccessToken({ prompt: '' });
+      const client = _getTokenClient(resolve, reject);
+      if(client) client.requestAccessToken({ prompt: '' });
     });
   }
 
-  // ── Silent token refresh (try prompt=none first) ──────────────────
-  function silentRefresh(){
-    return new Promise((resolve, reject) => {
-      if(!window.google || !window.google.accounts){ reject(new Error('GSI not loaded')); return; }
-      const cid = clientId();
-      if(!cid){ reject(new Error('No client ID')); return; }
-      const client = google.accounts.oauth2.initTokenClient({
-        client_id: cid,
-        scope: SCOPES,
-        prompt: '',
-        callback: (resp) => {
-          if(resp.error || !resp.access_token){ reject(new Error(resp.error||'no token')); return; }
-          _token = { access_token: resp.access_token, expiry_ms: Date.now() + (resp.expires_in - 30)*1000 };
-          _saveToken(_token);
-          localStorage.setItem(KEY_CONNECTED, '1');
-          _gcalUpdateBtn();
-          resolve(_token.access_token);
-        }
-      });
-      client.requestAccessToken({ prompt: 'none' });
-    });
-  }
-
-  // ── Get a valid token (reuse → silent refresh → interactive) ─────
+  // Get a valid token:
+  //   1. In-memory (_token still valid)         → instant, no network
+  //   2. sessionStorage (_loadToken still valid) → instant, no network
+  //   3. interactive=true (user clicked button)  → show Google OAuth UI
+  //   4. interactive=false (background auto-sync) → throw, never show UI
   async function getToken(interactive=false){
-    // 1. In-memory cache
-    if(_token && Date.now() < _token.expiry_ms) return _token.access_token;
-    // 2. sessionStorage cache (survives page reload within same tab)
-    const stored = _loadToken();
-    if(stored){ _token = stored; return _token.access_token; }
-    // 3. Token truly expired/missing — only do OAuth if connected flag is set
-    if(localStorage.getItem(KEY_CONNECTED) === '1'){
-      // For silent background syncs: do NOT trigger any UI or popup
-      // Just throw so auto-sync skips gracefully until user manually re-auths
-      if(!interactive){
-        throw new Error('Session expired — open Settings to reconnect Google Calendar');
-      }
-      // User clicked sync button — interactive auth is OK
-      return requestToken();
+    // 1. Memory cache
+    if(_token && Date.now() < _token.expiry_ms){
+      console.log('[DC GCal] token: memory cache hit, expires in', Math.round((_token.expiry_ms - Date.now())/1000)+'s');
+      return _token.access_token;
     }
+    // 2. sessionStorage cache
+    const stored = _loadToken();
+    if(stored){
+      _token = stored;
+      console.log('[DC GCal] token: sessionStorage hit, expires in', Math.round((_token.expiry_ms - Date.now())/1000)+'s');
+      return _token.access_token;
+    }
+    // 3 & 4. Need fresh token
+    console.log('[DC GCal] token: no valid token, interactive='+interactive);
     if(interactive) return requestToken();
-    throw new Error('Not authenticated');
+    // Background sync: never trigger OAuth. Show a gentle nudge instead.
+    throw new Error('reconnect');
   }
 
   // ── Connect button handler (interactive auth) ─────────────────────
@@ -12474,7 +12467,8 @@ async function _applyDataPack(raw){
 
   // ── Main sync — diff-based, only touch changed events ─────────────
   async function syncToGcal(silent=false){
-    if(_syncing) return;
+    if(_syncing){ console.log('[DC GCal] sync skipped: already syncing'); return; }
+    console.log('[DC GCal] syncToGcal start, silent='+silent);
     _syncing = true;
     const btn = document.getElementById('gcalSyncBtn');
     if(btn) btn.disabled = true;
@@ -12645,27 +12639,23 @@ async function _applyDataPack(raw){
       setTimeout(()=>setProgress(0), 2000);
 
     } catch(err){
-      const needsReauth = err.message && (
-        err.message.includes('Token expired') ||
-        err.message.includes('Not authenticated') ||
-        err.message.includes('401') ||
-        err.message.includes('invalid') ||
-        err.message.includes('unauthorized')
-      );
-      if(needsReauth){
+      const isReconnect = !err.message || err.message === 'reconnect' ||
+        err.message.includes('expired') || err.message.includes('401') ||
+        err.message.includes('unauthorized') || err.message.includes('Not authenticated');
+      if(isReconnect){
+        // Don't wipe KEY_CONNECTED — just clear the token so next manual sync re-auths
         _token = null;
         _clearToken();
-        localStorage.removeItem(KEY_CONNECTED);
         _gcalUpdateBtn();
         if(silent){
-          setAutoSyncStatus('Session expired — open Settings to reconnect', 'var(--amber)');
+          setAutoSyncStatus('Session expired — tap Sync button to reconnect', 'var(--amber)');
           hideSyncingToast();
         } else {
-          setStatus('✗ Session expired — click "Connect Google Calendar" to reconnect', 'var(--amber)');
+          setStatus('✗ Session expired — click Sync to reconnect', 'var(--amber)');
         }
       } else {
         setStatus('✗ ' + err.message, 'var(--red)');
-        if(silent) hideSyncingToast();
+        if(silent){ setAutoSyncStatus('Sync error — check console', 'var(--red)'); hideSyncingToast(); }
       }
       setProgress(0);
     }
@@ -12692,6 +12682,7 @@ async function _applyDataPack(raw){
   // ── Auto-sync on save — called by sd() after every data save ──────
   let _countdownTimer = null;
   window._scheduleAutoSync = function(){
+    console.log('[DC GCal] _scheduleAutoSync called, connected='+isConnected()+' clientId='+!!clientId());
     if(!isConnected()) return;
     if(!clientId()) return;
     clearTimeout(_autoSyncTimer);
@@ -12718,12 +12709,7 @@ async function _applyDataPack(raw){
         await syncToGcal(true);
         // setAutoSyncStatus is updated inside syncToGcal on success
       } catch(e){
-        const errMsg = e.message || 'Unknown error';
-        if(errMsg.includes('expired') || errMsg.includes('reconnect')){
-          setAutoSyncStatus('Session expired — reconnect in Settings', 'var(--amber)');
-        } else {
-          setAutoSyncStatus('Sync failed: ' + errMsg.substring(0,60), 'var(--red)');
-        }
+        // syncToGcal already set the status — nothing more to do here
       }
       showAutoSyncDot(false);
     }, 5000);
@@ -12735,7 +12721,21 @@ async function _applyDataPack(raw){
 
     // Manual sync button (settings)
     const btn = document.getElementById('gcalSyncBtn');
-    if(btn) btn.addEventListener('click', ()=>syncToGcal(false));
+    if(btn) btn.addEventListener('click', async ()=>{
+      // Try cached token first — only show OAuth if no valid token exists
+      const hasCached = (_token && Date.now() < _token.expiry_ms) || !!_loadToken();
+      if(hasCached){
+        syncToGcal(false); // will use cache, interactive=true only as fallback
+      } else {
+        // No token at all — do interactive auth then sync
+        setStatus('Opening Google sign-in…', 'var(--teal2)');
+        try {
+          await requestToken();
+          _gcalUpdateBtn();
+          syncToGcal(false);
+        } catch(e){ setStatus('✗ ' + e.message, 'var(--red)'); }
+      }
+    });
 
     // Connect button (settings)
     const cBtn = document.getElementById('gcalConnectBtn');
