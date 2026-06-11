@@ -12464,13 +12464,19 @@ async function _applyDataPack(raw){
 
     if(!silent){
       setStatus('Signing in…', 'var(--teal2)');
-    } else {
-      showSyncingToast('Syncing to Google Calendar…');
     }
+    // Note: toast is shown AFTER token obtained so bar isn't stuck at 0 during auth
 
     try {
       const token = await getToken(!silent);
-      setProgress(5);
+      // Token ready — now show toast with bar already ticking
+      if(silent){
+        setProgress(8);
+        showSyncingToast('Checking calendar…');
+        setProgress(12);
+      } else {
+        setProgress(5);
+      }
 
       if(!silent) setStatus('Finding Daily Command calendar…', 'var(--teal2)');
       const calendarId = await getOrCreateDcCalendar(token);
@@ -12665,13 +12671,39 @@ async function _applyDataPack(raw){
   }
 
   // ── Auto-sync on save — called by sd() after every data save ──────
+  let _countdownTimer = null;
   window._scheduleAutoSync = function(){
     if(!isConnected()) return;
     if(!clientId()) return;
     clearTimeout(_autoSyncTimer);
+    clearInterval(_countdownTimer);
     showAutoSyncDot(true);
-    setAutoSyncStatus('Changes detected — syncing in 5s…', 'var(--teal2)');
+    hideSyncingToast(); // hide any previous toast immediately
+
+    // Countdown in settings status only — no toast until sync actually starts
+    let remaining = 5;
+    setAutoSyncStatus('Syncing in ' + remaining + 's…', 'var(--muted)');
+    _countdownTimer = setInterval(()=>{
+      remaining--;
+      if(remaining > 0){
+        setAutoSyncStatus('Syncing in ' + remaining + 's…', 'var(--muted)');
+      } else {
+        clearInterval(_countdownTimer);
+      }
+    }, 1000);
+
+    // Pre-warm token in the background during the countdown window
+    // so by the time 5s fires, the OAuth round-trip is already done
+    setTimeout(async ()=>{
+      try {
+        if(!(_token && Date.now() < _token.expiry_ms)){
+          await silentRefresh();
+        }
+      } catch(e){ /* will retry at sync time */ }
+    }, 200);
+
     _autoSyncTimer = setTimeout(async ()=>{
+      clearInterval(_countdownTimer);
       setAutoSyncStatus('Syncing…', 'var(--teal2)');
       try {
         await syncToGcal(true);
