@@ -6964,11 +6964,18 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 // ── Init Supabase client ──────────────────────────────────────────────
 const _sbConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY';
-const _sb = _sbConfigured
-  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
-      auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
-    })
-  : null;
+let _sb = null;
+if (_sbConfigured) {
+  try {
+    _sb = (typeof supabase !== 'undefined' ? supabase : window.supabase)
+      .createClient(SUPABASE_URL, SUPABASE_ANON, {
+        auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+      });
+  } catch(e) {
+    console.warn('Supabase client could not be initialised (CDN may not have loaded):', e);
+    // _sb stays null — app falls back to "This Device" local mode
+  }
+}
 
 // ── Current user (email, set after auth) ─────────────────────────────
 let _currentUser = null;  // will be set to user.email or local username after login
@@ -7133,8 +7140,20 @@ async function _bootUser(user, ov){
   _currentUser = user.email;
   _sbUserId    = user.id;
 
-  // Show loading indicator in the auth overlay
-  const btn = document.getElementById('authSubmitBtn');
+  // Find whichever submit button belongs to the currently-visible panel
+  const _getActiveBtn = () => {
+    const map = [
+      ['authLoginPanel',    'authSubmitBtn'],
+      ['authRegisterPanel', 'authRegisterBtn'],
+      ['authLocalPanel',    'authLocalBtn'],
+    ];
+    for (const [panelId, btnId] of map) {
+      const panel = document.getElementById(panelId);
+      if (panel && panel.style.display !== 'none') return document.getElementById(btnId);
+    }
+    return document.getElementById('authSubmitBtn');
+  };
+  const btn = _getActiveBtn();
   if(btn){ btn.textContent='Loading data…'; btn.disabled=true; }
 
   D = await ld();
@@ -7156,7 +7175,9 @@ async function _bootUser(user, ov){
   ov.classList.add('auth-fade-out');
   setTimeout(()=>{ ov.style.display='none'; if(btn){btn.disabled=false;} },520);
   _setNavUser(_currentUser);
-  render(); renderTodos(); renderNotesDate();
+  try{ render(); }catch(e){ console.error('render error after login:', e); }
+  try{ renderTodos(); }catch(e){ console.error('renderTodos error:', e); }
+  try{ renderNotesDate(); }catch(e){ console.error('renderNotesDate error:', e); }
   // Show Google Calendar connect section on auth screen (in case user sees it briefly)
   setTimeout(()=>{ if(typeof window._gcalOnLogin==='function') window._gcalOnLogin(); }, 600);
 }
@@ -7186,12 +7207,12 @@ async function _initAuth(){
 
   // ── TAB WIRING — wire ALL buttons immediately before any async work ──
   document.getElementById('tabLogin').addEventListener('click',()=>{
-    if(!_sbConfigured) return;
+    if(!_sb) return;
     _switchTab('login');
     document.getElementById('authResetMsg').style.display='none';
   });
   document.getElementById('tabRegister').addEventListener('click',()=>{
-    if(!_sbConfigured) return;
+    if(!_sb) return;
     _switchTab('register');
   });
   document.getElementById('tabLocal').addEventListener('click',()=>{ _switchTab('local'); });
@@ -7215,7 +7236,7 @@ async function _initAuth(){
   });
 
   // ── Wire cloud sign-in / register buttons (safe even if _sbConfigured=false) ──
-  if(_sbConfigured){
+  if(_sbConfigured && _sb){
     // ── SIGN IN ────────────────────────────────────────────────────
     async function doSignIn(){
       const email    = document.getElementById('authEmail').value.trim();
@@ -7322,7 +7343,7 @@ async function _initAuth(){
   }
 
   // ── CLOUD MODE: check Supabase session (with timeout) ─────────────
-  if(!_sbConfigured) return;
+  if(!_sbConfigured || !_sb) return;
 
   let session;
   try{
