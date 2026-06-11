@@ -4630,45 +4630,136 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
   opacity:1;
 }
 
-/* ── CUSTOM 24H TIME SELECTS ── */
+/* ── DRUM-ROLLER TIME PICKER ── */
 .time-block-row{
-  display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px;
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px;
 }
-.time-sel-wrap{display:flex;align-items:center;gap:3px;}
-.time-sel{
-  background:rgba(31,122,140,0.08);
+.time-sel-wrap{
+  display:flex;align-items:center;gap:2px;
+  background:rgba(31,122,140,0.07);
   border:0.5px solid var(--border-mid);
-  color:var(--text);
-  border-radius:7px;
-  padding:7px 8px;
-  font-family:'JetBrains Mono',monospace;
-  font-size:.82rem;
-  outline:none;cursor:pointer;
-  transition:border-color 0.25s,box-shadow 0.25s;
-  appearance:none;-webkit-appearance:none;
-  text-align:center;
-  min-width:54px;
+  border-radius:9px;
+  padding:2px 4px;
+  transition:border-color .2s,box-shadow .2s;
 }
-.time-sel:focus{
+.time-sel-wrap:focus-within{
   border-color:var(--teal2);
-  box-shadow:0 0 0 2px rgba(31,122,140,0.18);
+  box-shadow:0 0 0 2px rgba(31,122,140,0.15);
 }
-.time-sel option{background:#011c27;color:var(--text);}
+/* Hidden native select — keeps all logic, just invisible */
+.time-sel{
+  position:absolute;opacity:0;pointer-events:none;width:0;height:0;
+}
+/* The visible drum display */
+.tdr{
+  display:flex;flex-direction:column;align-items:center;
+  cursor:ns-resize;user-select:none;
+  min-width:32px;padding:3px 2px;
+  position:relative;
+}
+.tdr-val{
+  font-family:'JetBrains Mono',monospace;font-size:.95rem;font-weight:700;
+  color:var(--text);line-height:1;letter-spacing:.01em;
+  transition:transform .1s,opacity .1s;
+}
+.tdr-empty .tdr-val{ color:var(--muted); font-size:.75rem; }
+.tdr-arrows{display:flex;flex-direction:column;gap:1px;opacity:0;transition:opacity .15s;}
+.tdr:hover .tdr-arrows,.tdr:focus .tdr-arrows{opacity:1;}
+.tdr-arr{
+  background:none;border:none;padding:0;margin:0;cursor:pointer;
+  color:var(--teal2);font-size:.5rem;line-height:1;display:block;text-align:center;
+  transition:color .15s;
+}
+.tdr-arr:hover{color:#fff;}
 .time-colon{
-  font-family:'JetBrains Mono',monospace;font-size:1.1rem;
+  font-family:'JetBrains Mono',monospace;font-size:1rem;
   font-weight:700;color:var(--teal2);line-height:1;user-select:none;
+  margin:0 1px;padding-bottom:1px;
 }
 .time-dash{
-  font-family:'JetBrains Mono',monospace;font-size:.85rem;
-  color:var(--muted);padding:0 4px;user-select:none;
+  font-family:'JetBrains Mono',monospace;font-size:.8rem;
+  color:var(--muted2);padding:0 3px;user-select:none;
 }
 .time-clear-btn{
-  font-size:.6rem;padding:4px 9px;border-radius:5px;
+  font-size:.58rem;padding:4px 8px;border-radius:6px;
   border:0.5px solid var(--border);background:transparent;
   color:var(--muted);cursor:pointer;font-family:'JetBrains Mono',monospace;
   transition:all 0.2s;white-space:nowrap;
 }
 .time-clear-btn:hover{border-color:var(--red);color:var(--red);background:var(--rdim);}
+
+/* ── GOOGLE CALENDAR STYLE TIME DROPDOWN ── */
+.tdr-gcal-list{
+  position:absolute;
+  top:calc(100% + 6px);
+  left:50%;
+  transform:translateX(-50%);
+  background:var(--s3);
+  border:0.5px solid var(--border-hi);
+  border-radius:var(--r-md);
+  box-shadow:0 12px 48px rgba(0,0,0,0.75), 0 4px 16px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(31,122,140,0.2);
+  backdrop-filter:blur(24px) saturate(1.4);
+  z-index:9999;
+  width:120px;
+  max-height:220px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(31,122,140,0.25) transparent;
+  animation:tdrGcalIn 0.16s cubic-bezier(0.16,1,0.3,1) both;
+  padding:4px 0;
+}
+.tdr-gcal-list::-webkit-scrollbar{width:3px;}
+.tdr-gcal-list::-webkit-scrollbar-thumb{background:rgba(31,122,140,0.25);border-radius:2px;}
+@keyframes tdrGcalIn{
+  from{opacity:0;transform:translateX(-50%) scale(0.94) translateY(-4px);}
+  to{opacity:1;transform:translateX(-50%) scale(1) translateY(0);}
+}
+.tdr-gcal-item{
+  display:flex;align-items:center;
+  padding:6px 12px;
+  font-family:'JetBrains Mono',monospace;font-size:.72rem;
+  color:var(--text-mid);
+  cursor:pointer;
+  transition:background .1s, color .1s;
+  white-space:nowrap;
+  gap:7px;
+  position:relative;
+}
+.tdr-gcal-item:hover{
+  background:rgba(31,122,140,0.14);
+  color:var(--teal2);
+}
+.tdr-gcal-item.gcal-active{
+  background:rgba(31,122,140,0.18);
+  color:var(--teal2);
+  font-weight:700;
+}
+.tdr-gcal-item.gcal-active::before{
+  content:'';
+  position:absolute;left:0;top:20%;bottom:20%;
+  width:2.5px;background:var(--teal2);border-radius:0 2px 2px 0;
+}
+.tdr-gcal-period{
+  font-size:.56rem;color:var(--muted);letter-spacing:.04em;
+}
+/* Only the hour drum gets the gcal dropdown trigger — show caret */
+.tdr[data-type="h"]:focus-within,
+.tdr[data-type="h"]:hover{
+  /* subtle glow on focus */
+}
+/* Keyboard hint badge that appears near the drum on first focus */
+.tdr-kbd-hint{
+  position:absolute;
+  bottom:-18px;left:50%;transform:translateX(-50%);
+  font-family:'JetBrains Mono',monospace;font-size:.46rem;
+  color:var(--muted2);white-space:nowrap;
+  pointer-events:none;letter-spacing:.04em;
+  opacity:0;transition:opacity .2s;
+  background:rgba(2,35,48,0.9);
+  border:0.5px solid var(--border);
+  border-radius:4px;padding:2px 6px;z-index:10;
+}
+.tdr:focus .tdr-kbd-hint,.tdr:focus-within .tdr-kbd-hint{opacity:1;}
 
 /* ── IMPROVED DAY PICKER BUTTONS ── */
 .day-picker{
@@ -6803,18 +6894,42 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
   <div class="dtp-body">
     <div class="dtp-row">
       <label>Start</label>
-      <div class="dtp-time-wrap">
-        <select class="dtp-sel" id="dtpSH"></select>
-        <span class="dtp-colon">:</span>
-        <select class="dtp-sel" id="dtpSM"></select>
+      <div class="time-sel-wrap" data-wrap-h="dtpSH" data-wrap-m="dtpSM">
+        <select class="time-sel" id="dtpSH" aria-label="start hour"></select>
+        <select class="time-sel" id="dtpSM" aria-label="start minute"></select>
+        <div class="tdr" id="dtpSH-tdr" tabindex="0" data-sel="dtpSH" data-type="h" title="Click to pick hour · Scroll or ▲▼ · Type digits">
+          <button class="tdr-arr" data-dir="-1" data-sel="dtpSH" data-type="h" tabindex="-1">▲</button>
+          <span class="tdr-val">--</span>
+          <button class="tdr-arr" data-dir="1" data-sel="dtpSH" data-type="h" tabindex="-1">▼</button>
+          <span class="tdr-kbd-hint">type digits</span>
+        </div>
+        <span class="time-colon">:</span>
+        <div class="tdr" id="dtpSM-tdr" tabindex="0" data-sel="dtpSM" data-type="m" title="Scroll or ▲▼ · Type digits">
+          <button class="tdr-arr" data-dir="-1" data-sel="dtpSM" data-type="m" tabindex="-1">▲</button>
+          <span class="tdr-val">00</span>
+          <button class="tdr-arr" data-dir="1" data-sel="dtpSM" data-type="m" tabindex="-1">▼</button>
+          <span class="tdr-kbd-hint">type digits</span>
+        </div>
       </div>
     </div>
     <div class="dtp-row">
       <label>End</label>
-      <div class="dtp-time-wrap">
-        <select class="dtp-sel" id="dtpEH"></select>
-        <span class="dtp-colon">:</span>
-        <select class="dtp-sel" id="dtpEM"></select>
+      <div class="time-sel-wrap" data-wrap-h="dtpEH" data-wrap-m="dtpEM">
+        <select class="time-sel" id="dtpEH" aria-label="end hour"></select>
+        <select class="time-sel" id="dtpEM" aria-label="end minute"></select>
+        <div class="tdr" id="dtpEH-tdr" tabindex="0" data-sel="dtpEH" data-type="h" title="Click to pick hour · Scroll or ▲▼ · Type digits">
+          <button class="tdr-arr" data-dir="-1" data-sel="dtpEH" data-type="h" tabindex="-1">▲</button>
+          <span class="tdr-val">--</span>
+          <button class="tdr-arr" data-dir="1" data-sel="dtpEH" data-type="h" tabindex="-1">▼</button>
+          <span class="tdr-kbd-hint">type digits</span>
+        </div>
+        <span class="time-colon">:</span>
+        <div class="tdr" id="dtpEM-tdr" tabindex="0" data-sel="dtpEM" data-type="m" title="Scroll or ▲▼ · Type digits">
+          <button class="tdr-arr" data-dir="-1" data-sel="dtpEM" data-type="m" tabindex="-1">▲</button>
+          <span class="tdr-val">00</span>
+          <button class="tdr-arr" data-dir="1" data-sel="dtpEM" data-type="m" tabindex="-1">▼</button>
+          <span class="tdr-kbd-hint">type digits</span>
+        </div>
       </div>
     </div>
   </div>
@@ -7400,6 +7515,16 @@ function fmtEffTime(t){
 const _todayRaw=new Date();_todayRaw.setHours(0,0,0,0);
 const TODAY=_todayRaw;
 const TODAY_KEY=tk(TODAY);
+// Set date picker default to today as soon as DOM is ready
+document.addEventListener('DOMContentLoaded',()=>{
+  const dp=document.getElementById('aipDatePicker');
+  if(dp && !dp.value) dp.value=TODAY_KEY;
+  // Also pre-set copy dates to today
+  const cf=document.getElementById('copyFromDate');
+  const ct=document.getElementById('copyToDate');
+  if(cf && !cf.value) cf.value=TODAY_KEY;
+  if(ct && !ct.value) ct.value=TODAY_KEY;
+},{ once:true });
 let dvD2=new Date(TODAY);
 let viewMon=gMon(TODAY);
 let calY=TODAY.getFullYear(),calM=TODAY.getMonth();
@@ -8316,14 +8441,35 @@ document.getElementById('closeAddMinModal').addEventListener('click',()=>documen
 
 // ── Build a 24h time select pair (hour + minute) ──────────────────────
 function mkTimeSels(idH,idM,curHour,curMin){
+  const hVal = (curHour===undefined||curHour===null||curHour==='') ? '' : String(curHour);
+  const mVal = (curMin===undefined||curMin===null||curMin==='') ? '0' : String(curMin);
+  const hDisplay = hVal==='' ? '--' : String(parseInt(hVal)).padStart(2,'0');
+  const mDisplay = String(parseInt(mVal)||0).padStart(2,'0');
+  const hEmpty = hVal==='' ? ' tdr-empty' : '';
+  const mEmpty = hVal==='' ? ' tdr-empty' : '';
+  // Hidden selects keep all read/write logic intact
   const hOpts=[`<option value="">--</option>`,...Array.from({length:24},(_,i)=>
-    `<option value="${i}"${curHour===i?' selected':''}>${String(i).padStart(2,'0')}</option>`)].join('');
+    `<option value="${i}"${String(i)===hVal?' selected':''}>${String(i).padStart(2,'0')}</option>`)].join('');
   const mOpts=[0,5,10,15,20,25,30,35,40,45,50,55].map(m=>
-    `<option value="${m}"${(curMin||0)===m?' selected':''}>${String(m).padStart(2,'0')}</option>`).join('');
-  return `<div class="time-sel-wrap">
-    <select id="${idH}" class="time-sel">${hOpts}</select>
+    `<option value="${m}"${String(m)===mVal?' selected':''}>${String(m).padStart(2,'0')}</option>`).join('');
+  return `<div class="time-sel-wrap" data-wrap-h="${idH}" data-wrap-m="${idM}">
+    <select id="${idH}" class="time-sel" aria-label="hour">${hOpts}</select>
+    <select id="${idM}" class="time-sel" aria-label="minute">${mOpts}</select>
+    <div class="tdr${hEmpty}" id="${idH}-tdr" tabindex="0" data-sel="${idH}" data-type="h"
+         title="Click to pick hour · Scroll or ▲▼ · Type digits (e.g. 09)">
+      <button class="tdr-arr" data-dir="-1" data-sel="${idH}" data-type="h" tabindex="-1">▲</button>
+      <span class="tdr-val">${hDisplay}</span>
+      <button class="tdr-arr" data-dir="1" data-sel="${idH}" data-type="h" tabindex="-1">▼</button>
+      <span class="tdr-kbd-hint">type digits</span>
+    </div>
     <span class="time-colon">:</span>
-    <select id="${idM}" class="time-sel">${mOpts}</select>
+    <div class="tdr${mEmpty}" id="${idM}-tdr" tabindex="0" data-sel="${idM}" data-type="m"
+         title="Scroll or ▲▼ · Type digits (e.g. 30)">
+      <button class="tdr-arr" data-dir="-1" data-sel="${idM}" data-type="m" tabindex="-1">▲</button>
+      <span class="tdr-val">${mDisplay}</span>
+      <button class="tdr-arr" data-dir="1" data-sel="${idM}" data-type="m" tabindex="-1">▼</button>
+      <span class="tdr-kbd-hint">type digits</span>
+    </div>
   </div>`;
 }
 
@@ -8333,8 +8479,292 @@ function readTimeSel(idH,idM){
   return {h:parseInt(hv),m:parseInt(document.getElementById(idM)?.value||'0')};
 }
 
+// ── Drum-roller engine ────────────────────────────────────────────────────
+// All drum rollers in the page are wired via event delegation on document.
+// Each .tdr reads/writes its paired hidden <select> and updates its display span.
+
+const HOUR_VALS = ['',...Array.from({length:24},(_,i)=>String(i))];
+const MIN_VALS  = [0,5,10,15,20,25,30,35,40,45,50,55].map(String);
+
+function _tdrStep(selId, type, dir){
+  const sel = document.getElementById(selId);
+  const tdr = document.getElementById(selId+'-tdr');
+  if(!sel||!tdr) return;
+  const vals = type==='h' ? HOUR_VALS : MIN_VALS;
+  let idx = vals.indexOf(sel.value);
+  // If empty (--) and stepping down, start at 0; stepping up, start at last
+  if(idx < 0) idx = dir > 0 ? 0 : vals.length - 1;
+  else idx = (idx + dir + vals.length) % vals.length;
+  sel.value = vals[idx];
+  _tdrRefresh(selId, type);
+  sel.dispatchEvent(new Event('change', {bubbles:true}));
+}
+
+function _tdrRefresh(selId, type){
+  const sel = document.getElementById(selId);
+  const tdr = document.getElementById(selId+'-tdr');
+  if(!sel||!tdr) return; // safe: drum may not exist yet
+  const v = sel.value;
+  const valSpan = tdr.querySelector('.tdr-val');
+  if(!valSpan) return;
+  if(v===''||v===null||v===undefined){
+    valSpan.textContent = '--';
+    tdr.classList.add('tdr-empty');
+  } else {
+    valSpan.textContent = String(parseInt(v)).padStart(2,'0');
+    tdr.classList.remove('tdr-empty');
+  }
+  // Animate
+  valSpan.style.transform='scale(1.18)';valSpan.style.opacity='0.7';
+  requestAnimationFrame(()=>{ valSpan.style.transform='';valSpan.style.opacity=''; });
+}
+
+// Wire all drum-roller interactions via delegation
+(function(){
+  // Arrow button clicks
+  document.addEventListener('click', e=>{
+    const arr = e.target.closest('.tdr-arr');
+    if(!arr) return;
+    e.preventDefault(); e.stopPropagation();
+    _tdrStep(arr.dataset.sel, arr.dataset.type, parseInt(arr.dataset.dir));
+  }, true);
+
+  // Scroll on the drum itself
+  document.addEventListener('wheel', e=>{
+    const tdr = e.target.closest('.tdr');
+    if(!tdr) return;
+    e.preventDefault();
+    const dir = e.deltaY > 0 ? 1 : -1;
+    _tdrStep(tdr.dataset.sel, tdr.dataset.type, dir);
+  }, {passive:false, capture:true});
+
+  // Touch swipe on drum
+  let _touchY=null;
+  document.addEventListener('touchstart', e=>{
+    if(e.target.closest('.tdr')) _touchY = e.touches[0].clientY;
+  }, {passive:true});
+  document.addEventListener('touchend', e=>{
+    const tdr = e.target.closest('.tdr');
+    if(!tdr||_touchY===null) return;
+    const dy = _touchY - e.changedTouches[0].clientY;
+    if(Math.abs(dy) > 12) _tdrStep(tdr.dataset.sel, tdr.dataset.type, dy>0?1:-1);
+    _touchY = null;
+  }, {passive:true});
+
+  // Keyboard on focused drum — arrows + digit typing (Google Calendar style)
+  const _tdrTypeBuf = {}; // keyed by selId → {digit, timer}
+  document.addEventListener('keydown', e=>{
+    const tdr = document.activeElement?.closest('.tdr');
+    if(!tdr) return;
+    const selId = tdr.dataset.sel;
+    const type  = tdr.dataset.type;
+    if(e.key==='ArrowUp'){e.preventDefault();_tdrStep(selId,type,-1);return;}
+    if(e.key==='ArrowDown'){e.preventDefault();_tdrStep(selId,type,1);return;}
+    if(e.key==='Tab'||e.key==='Enter'){return;} // let natural focus/form handling proceed
+
+    // Digit typing: accumulate up to 2 digits then commit
+    if(/^\d$/.test(e.key)){
+      e.preventDefault();
+      const d = parseInt(e.key);
+      const buf = _tdrTypeBuf[selId];
+      const sel = document.getElementById(selId);
+      if(!sel) return;
+
+      if(buf && buf.digit !== undefined){
+        // Second digit — combine with first
+        clearTimeout(buf.timer);
+        delete _tdrTypeBuf[selId];
+        let val = buf.digit * 10 + d;
+        if(type === 'h'){
+          val = Math.min(23, val); // clamp 0–23
+          sel.value = String(val);
+        } else {
+          // Minutes: snap to nearest 5-min slot from MIN_VALS
+          const snapped = MIN_VALS.reduce((best,mv)=>Math.abs(parseInt(mv)-val)<Math.abs(parseInt(best)-val)?mv:best);
+          sel.value = snapped;
+        }
+        _tdrRefresh(selId, type);
+        sel.dispatchEvent(new Event('change',{bubbles:true}));
+
+        // Auto-advance to next drum (h → m, m → next h or save)
+        const wrap = tdr.closest('.time-sel-wrap');
+        if(wrap){
+          if(type==='h'){
+            const mSelId = wrap.dataset.wrapM;
+            document.getElementById(mSelId+'-tdr')?.focus();
+          }
+        }
+      } else {
+        // First digit — if it can only be a single valid value, commit immediately
+        // For hours: 3–9 can only be one digit (30-99 invalid); commit right away
+        // For minutes: 6–9 → snap immediately
+        const commitNow = (type==='h' && d >= 3) || (type==='m' && d >= 6);
+        if(commitNow){
+          let val = d;
+          if(type === 'h'){
+            sel.value = String(val);
+          } else {
+            const snapped = MIN_VALS.reduce((best,mv)=>Math.abs(parseInt(mv)-val)<Math.abs(parseInt(best)-val)?mv:best);
+            sel.value = snapped;
+          }
+          _tdrRefresh(selId, type);
+          sel.dispatchEvent(new Event('change',{bubbles:true}));
+          // Auto-advance
+          const wrap = tdr.closest('.time-sel-wrap');
+          if(wrap && type==='h'){
+            const mSelId = wrap.dataset.wrapM;
+            document.getElementById(mSelId+'-tdr')?.focus();
+          }
+        } else {
+          // Wait for potential second digit (400ms window)
+          // Show the first digit live on the drum
+          const valSpan = tdr.querySelector('.tdr-val');
+          if(valSpan){ valSpan.textContent = String(d); tdr.classList.remove('tdr-empty'); }
+          const timer = setTimeout(()=>{
+            const b = _tdrTypeBuf[selId];
+            if(!b) return;
+            delete _tdrTypeBuf[selId];
+            let val = b.digit;
+            if(type === 'h'){
+              sel.value = String(val);
+            } else {
+              const snapped = MIN_VALS.reduce((best,mv)=>Math.abs(parseInt(mv)-val)<Math.abs(parseInt(best)-val)?mv:best);
+              sel.value = snapped;
+            }
+            _tdrRefresh(selId, type);
+            sel.dispatchEvent(new Event('change',{bubbles:true}));
+            // Auto-advance after single digit commit
+            const wrap = tdr.closest('.time-sel-wrap');
+            if(wrap && type==='h'){
+              const mSelId = wrap.dataset.wrapM;
+              document.getElementById(mSelId+'-tdr')?.focus();
+            }
+          }, 400);
+          _tdrTypeBuf[selId] = {digit: d, timer};
+        }
+      }
+    }
+  });
+})();
+
 // ═══════════════════════════════════════════════════════════════════════
-// HABIT / ACTIVITY MODAL
+// GOOGLE CALENDAR STYLE HOUR DROPDOWN
+// Opens on click of the hour (.tdr[data-type="h"]) showing a scrollable
+// list of all 24 hours, styled to match the blueprint theme.
+// ═══════════════════════════════════════════════════════════════════════
+(function(){
+  let _gcalList = null;   // the active dropdown DOM node
+  let _gcalSelId = null;  // selId it's currently bound to
+
+  function _fmtHour(h){
+    // Google Calendar style: "12 AM", "1 PM", "9 PM" etc.
+    if(h === 0)  return {main:'12', period:'AM'};
+    if(h < 12)   return {main:String(h), period:'AM'};
+    if(h === 12) return {main:'12', period:'PM'};
+    return {main:String(h-12), period:'PM'};
+  }
+
+  function _openGcal(tdrEl){
+    _closeGcal();
+    const selId = tdrEl.dataset.sel;
+    const sel   = document.getElementById(selId);
+    if(!sel) return;
+
+    _gcalSelId = selId;
+    const cur  = sel.value; // '' or '0'–'23'
+
+    const list = document.createElement('div');
+    list.className = 'tdr-gcal-list';
+    list.setAttribute('role','listbox');
+
+    // Build items: "--" + 00–23
+    const items = [
+      {val:'', mainLabel:'—', period:'', label:'No time'}
+    ];
+    for(let h=0;h<24;h++){
+      const {main,period} = _fmtHour(h);
+      items.push({val:String(h), mainLabel:main, period, label:`${String(h).padStart(2,'0')}:00`});
+    }
+
+    items.forEach(item=>{
+      const el = document.createElement('div');
+      el.className = 'tdr-gcal-item' + (item.val===cur?' gcal-active':'');
+      el.setAttribute('role','option');
+      el.setAttribute('aria-selected', item.val===cur?'true':'false');
+      el.dataset.val = item.val;
+      el.innerHTML = `<span style="min-width:22px;text-align:right;">${item.mainLabel}</span>`
+        + (item.period ? `<span class="tdr-gcal-period">${item.period}</span>` : `<span class="tdr-gcal-period">${item.period}</span>`);
+      el.addEventListener('mousedown', ev=>{
+        ev.preventDefault(); ev.stopPropagation();
+        sel.value = item.val;
+        _tdrRefresh(selId, 'h');
+        sel.dispatchEvent(new Event('change',{bubbles:true}));
+        _closeGcal();
+        // Advance to minute drum
+        const wrap = tdrEl.closest('.time-sel-wrap');
+        if(wrap){
+          const mSelId = wrap.dataset.wrapM;
+          const mTdr = document.getElementById(mSelId+'-tdr');
+          if(mTdr) mTdr.focus();
+        }
+      });
+      list.appendChild(el);
+    });
+
+    tdrEl.style.position = 'relative';
+    tdrEl.appendChild(list);
+    _gcalList = list;
+
+    // Scroll active item into view
+    const active = list.querySelector('.gcal-active');
+    if(active){
+      requestAnimationFrame(()=>active.scrollIntoView({block:'nearest',behavior:'instant'}));
+    }
+  }
+
+  function _closeGcal(){
+    if(_gcalList){ _gcalList.remove(); _gcalList=null; _gcalSelId=null; }
+  }
+
+  // Open on click of the hour drum value span (not the arrow buttons)
+  document.addEventListener('click', e=>{
+    const tdr = e.target.closest('.tdr');
+    if(tdr && tdr.dataset.type==='h' && !e.target.closest('.tdr-arr')){
+      if(_gcalSelId === tdr.dataset.sel){
+        _closeGcal(); return; // toggle off
+      }
+      e.stopPropagation();
+      _openGcal(tdr);
+      tdr.focus();
+      return;
+    }
+    // Click outside closes
+    if(_gcalList && !e.target.closest('.tdr-gcal-list')){ _closeGcal(); }
+  }, true);
+
+  // Close on Escape
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape' && _gcalList){ _closeGcal(); }
+    // Keyboard navigation within the open list
+    if(_gcalList && (e.key==='ArrowDown'||e.key==='ArrowUp')){
+      const items = [..._gcalList.querySelectorAll('.tdr-gcal-item')];
+      const cur = _gcalList.querySelector('.gcal-active');
+      let idx = cur ? items.indexOf(cur) : -1;
+      idx = e.key==='ArrowDown' ? Math.min(items.length-1,idx+1) : Math.max(0,idx-1);
+      items.forEach((it,i)=>it.classList.toggle('gcal-active',i===idx));
+      items[idx]?.scrollIntoView({block:'nearest',behavior:'smooth'});
+      e.preventDefault();
+    }
+    if(_gcalList && e.key==='Enter'){
+      const active = _gcalList.querySelector('.gcal-active');
+      if(active) active.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));
+      e.preventDefault();
+    }
+  });
+
+  // Close on scroll outside (popover would drift)
+  document.addEventListener('scroll', ()=>_closeGcal(), true);
+})();
 // ═══════════════════════════════════════════════════════════════════════
 let _addingActivity=false;
 let _hmLinks=[]; // working link list exposed for saveHabit
@@ -8363,8 +8793,14 @@ function openHabitModal(hid){
   const emojis=EMOJIS.map(e=>`<span class="ep${e===icon?' sel':''}" data-e="${e}">${e}</span>`).join('');
 
   // Time block row (shared by habits + activities)
-  const startSels=mkTimeSels('hm-sh-h','hm-sh-m',h?.startHour,h?.startMin);
-  const endSels  =mkTimeSels('hm-eh-h','hm-eh-m',h?.endHour,  h?.endMin);
+  // For new activities: default to current hour → +1hr. New habits: leave blank.
+  const _hmNowH = new Date().getHours();
+  const _hmDefSH = h ? h.startHour : (isAct ? _hmNowH : undefined);
+  const _hmDefSM = h ? h.startMin  : 0;
+  const _hmDefEH = h ? h.endHour   : (isAct ? Math.min(23, _hmNowH+1) : undefined);
+  const _hmDefEM = h ? h.endMin    : 0;
+  const startSels=mkTimeSels('hm-sh-h','hm-sh-m',_hmDefSH,_hmDefSM);
+  const endSels  =mkTimeSels('hm-eh-h','hm-eh-m',_hmDefEH,_hmDefEM);
   const timeBlockRow=`
     <div class="ff" style="grid-column:1/-1;">
       <label>Time block <span style="font-weight:400;color:var(--muted);font-size:.7em;">— leave blank for "all day / unscheduled"</span></label>
@@ -8801,6 +9237,12 @@ function openEventModal(dk,eid){
   const swatches=Object.entries(COLORS).map(([k,v])=>`<div class="cp-sw${k===col?' sel':''}" data-c="${k}" style="background:${v.hex}" title="${v.label}"></div>`).join('');
   const emojis=EMOJIS.map(e=>`<span class="ep${e===icon?' sel':''}" data-e="${e}">${e}</span>`).join('');
   const d=fk(dk);
+  // Default times for new events: current hour → current hour + 1
+  const _nowH = new Date().getHours();
+  const _defSH = ev ? undefined : _nowH;
+  const _defSM = ev ? undefined : 0;
+  const _defEH = ev ? undefined : (_nowH + 1 > 23 ? 23 : _nowH + 1);
+  const _defEM = ev ? undefined : 0;
   document.getElementById('eventModalBody').innerHTML=`
     <div style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted);margin-bottom:12px;">📅 ${d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
     <div class="fgrid">
@@ -8815,10 +9257,10 @@ function openEventModal(dk,eid){
       <div class="ff" style="grid-column:1/-1;">
         <label>Time <span id="evDurHint" style="font-size:.6em;font-weight:400;color:var(--teal2);margin-left:6px;font-family:'JetBrains Mono',monospace;"></span></label>
         <div class="time-block-row">
-          ${mkTimeSels('ev-sh-h','ev-sh-m',ev?.sh,ev?.sm)}
+          ${mkTimeSels('ev-sh-h','ev-sh-m',ev?.sh!==undefined?ev.sh:_defSH,ev?.sm!==undefined?ev.sm:_defSM)}
           <span class="time-dash">–</span>
-          ${mkTimeSels('ev-eh-h','ev-eh-m',ev?.eh,ev?.em)}
-          <button class="time-clear-btn" onclick="['ev-sh-h','ev-eh-h'].forEach(id=>{document.getElementById(id).value='';});['ev-sh-m','ev-eh-m'].forEach(id=>{document.getElementById(id).value='0';});document.getElementById('evDurHint').textContent='';">Clear</button>
+          ${mkTimeSels('ev-eh-h','ev-eh-m',ev?.eh!==undefined?ev.eh:_defEH,ev?.em!==undefined?ev.em:_defEM)}
+          <button class="time-clear-btn" onclick="['ev-sh-h','ev-eh-h'].forEach(id=>{document.getElementById(id).value='';});['ev-sh-m','ev-eh-m'].forEach(id=>{document.getElementById(id).value='0';});['ev-sh-h-tdr','ev-eh-h-tdr','ev-sh-m-tdr','ev-eh-m-tdr'].forEach(id=>{const t=document.getElementById(id);if(t){const v=t.querySelector('.tdr-val');if(v)v.textContent='--';t.classList.add('tdr-empty');}});document.getElementById('evDurHint').textContent='';">Clear</button>
         </div>
       </div>
       <div class="ff" style="grid-column:1/-1;"><label>Target minutes (optional timer)</label><input id="ev-mins" type="number" min="0" value="${ev?ev.targetMinutes||0:0}"></div>
@@ -8840,10 +9282,12 @@ function openEventModal(dk,eid){
   let _acMatches = []; // current rendered matches
   let _acDuration = null; // locked duration in minutes (from suggestion or manual end edit)
 
-  // Initialize duration from existing event being edited
+  // Initialize duration: from existing event, or 60min default for new events
   if(ev && ev.sh !== undefined && ev.eh !== undefined){
     _acDuration = (ev.eh*60+(ev.em||0)) - (ev.sh*60+(ev.sm||0));
     if(_acDuration < 0) _acDuration = null;
+  } else if(!ev){
+    _acDuration = 60; // default 1 hour for new events
   }
 
   function applyEvSuggestion(rec){
@@ -11444,6 +11888,8 @@ let _dtpHid=null,_dtpDk=null;
 
 function _fillSel(el,opts,cur){
   el.innerHTML=opts.map(o=>`<option value="${o.v}"${String(cur)===String(o.v)?' selected':''}>${o.l}</option>`).join('');
+  // Sync the paired drum display if one exists
+  if(el.id) _tdrRefresh(el.id, el.id.includes('M') ? 'm' : 'h');
 }
 
 function openDTP(hid,dk,anchorEl){
@@ -11463,9 +11909,13 @@ function openDTP(hid,dk,anchorEl){
   const hourOpts=[{v:'',l:'--'},...Array.from({length:24},(_,i)=>({v:String(i),l:String(i).padStart(2,'0')}))];
   const minOpts=[0,5,10,15,20,25,30,35,40,45,50,55].map(m=>({v:String(m),l:String(m).padStart(2,'0')}));
 
-  _fillSel(document.getElementById('dtpSH'),hourOpts,eff?.sh!==undefined?String(eff.sh):'');
+  // Default: current hour → +1hr when no time is set
+  const _dtpNowH = new Date().getHours();
+  const _dtpDefSH = eff?.sh!==undefined ? String(eff.sh) : String(_dtpNowH);
+  const _dtpDefEH = eff?.eh!==undefined ? String(eff.eh) : String(Math.min(23,_dtpNowH+1));
+  _fillSel(document.getElementById('dtpSH'),hourOpts,_dtpDefSH);
   _fillSel(document.getElementById('dtpSM'),minOpts,String(eff?.sm||0));
-  _fillSel(document.getElementById('dtpEH'),hourOpts,eff?.eh!==undefined?String(eff.eh):'');
+  _fillSel(document.getElementById('dtpEH'),hourOpts,_dtpDefEH);
   _fillSel(document.getElementById('dtpEM'),minOpts,String(eff?.em||0));
 
   // Position the popover near the clicked element
@@ -11480,8 +11930,8 @@ function openDTP(hid,dk,anchorEl){
   pop.style.left=Math.max(8,left)+'px';
   pop.style.top=top+'px';
 
-  // Focus first select
-  setTimeout(()=>document.getElementById('dtpSH').focus(),50);
+  // Focus first drum roller
+  setTimeout(()=>document.getElementById('dtpSH-tdr')?.focus(),50);
 }
 
 function closeDTP(){
@@ -11498,6 +11948,35 @@ document.getElementById('dtpClear').addEventListener('click',()=>{
   closeDTP();
   showToast('○ Day time cleared — using default');
 });
+
+// DTP: when hidden select changes (via _tdrStep), keep end time auto-linked (+1hr)
+(function(){
+  let _dtpDuration = 60; // default 1hr
+  function _dtpOnStartChange(){
+    const shv = document.getElementById('dtpSH')?.value;
+    if(!shv) return;
+    const sh = parseInt(shv), sm = parseInt(document.getElementById('dtpSM')?.value||0);
+    const newEnd = sh*60+sm+_dtpDuration;
+    const nEh = Math.min(23, Math.floor(newEnd/60)), nEm = newEnd%60;
+    const ehSel = document.getElementById('dtpEH');
+    const emSel = document.getElementById('dtpEM');
+    if(ehSel){ ehSel.value=String(nEh); _tdrRefresh('dtpEH','h'); }
+    if(emSel){ emSel.value=String(nEm); _tdrRefresh('dtpEM','m'); }
+  }
+  function _dtpOnEndChange(){
+    const shv=document.getElementById('dtpSH')?.value, ehv=document.getElementById('dtpEH')?.value;
+    if(!shv||!ehv) return;
+    const dur=(parseInt(ehv)*60+parseInt(document.getElementById('dtpEM')?.value||0))
+             -(parseInt(shv)*60+parseInt(document.getElementById('dtpSM')?.value||0));
+    if(dur>0) _dtpDuration=dur;
+  }
+  // Listen for changes on the hidden selects (dispatched by _tdrStep)
+  document.addEventListener('change', e=>{
+    const id = e.target?.id;
+    if(id==='dtpSH'||id==='dtpSM') _dtpOnStartChange();
+    if(id==='dtpEH'||id==='dtpEM') _dtpOnEndChange();
+  });
+})();
 
 document.getElementById('dtpSave').addEventListener('click',()=>{
   if(!_dtpHid||!_dtpDk) return;
