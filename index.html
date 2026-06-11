@@ -7182,57 +7182,9 @@ async function _initAuth(){
 
   // Start on login tab
   _switchTab('login');
-
-  // ── LOCAL MODE: restore saved local session ──────────────────────
-  const savedLocal = localStorage.getItem('dcmd_local_session');
-  if(savedLocal){
-    _localMode = true;
-    _currentUser = savedLocal;
-    ov.style.display='none';
-    await _bootUser({ email: _currentUser, id: null }, ov);
-    return;
-  }
-
-  // ── CLOUD MODE: check Supabase session ────────────────────────────
-  if(_sbConfigured){
-    let session;
-    try{
-      const res = await _sb.auth.getSession();
-      session = res?.data?.session;
-    }catch(e){ console.warn('getSession failed:', e); }
-
-    if(session?.user){
-      _localMode = false;
-      ov.style.display='none';
-      await _bootUser(session.user, ov);
-      return;
-    }
-
-    document.getElementById('authConfigBanner').style.display='none';
-
-    // Listen for auth state changes (email confirm redirects, etc.)
-    _sb.auth.onAuthStateChange(async (event, session) => {
-      if(event==='SIGNED_IN' && session?.user && !_currentUser){
-        _localMode = false;
-        await _bootUser(session.user, ov);
-      }
-      if(event==='SIGNED_OUT'){ _logout(); }
-    });
-  } else {
-    // Supabase not configured — show banner, disable cloud tabs
-    document.getElementById('authConfigBanner').style.display='';
-    document.getElementById('tabLogin').disabled    = true;
-    document.getElementById('tabRegister').disabled = true;
-    document.getElementById('tabLogin').title    = 'Supabase not configured';
-    document.getElementById('tabRegister').title = 'Supabase not configured';
-    document.getElementById('tabLogin').style.opacity    = '0.35';
-    document.getElementById('tabRegister').style.opacity = '0.35';
-    _switchTab('local');
-  }
-
   ov.style.display='flex';
 
-  // ── TAB WIRING ──────────────────────────────────────────────────
+  // ── TAB WIRING — wire ALL buttons immediately before any async work ──
   document.getElementById('tabLogin').addEventListener('click',()=>{
     if(!_sbConfigured) return;
     _switchTab('login');
@@ -7262,91 +7214,142 @@ async function _initAuth(){
     if(e.key==='Enter') document.getElementById('authLocalBtn').click();
   });
 
-  if(!_sbConfigured) return;
-
-  // ── SIGN IN ──────────────────────────────────────────────────────
-  async function doSignIn(){
-    const email    = document.getElementById('authEmail').value.trim();
-    const password = document.getElementById('authPassword').value;
-    const errEl    = document.getElementById('authError');
-    const btn      = document.getElementById('authSubmitBtn');
-    document.getElementById('authResetMsg').style.display='none';
-    if(!email){ errEl.textContent='Please enter your email.'; errEl.classList.add('show'); return; }
-    if(!password){ errEl.textContent='Please enter a password.'; errEl.classList.add('show'); return; }
-    btn.disabled=true; btn.textContent='Signing in…';
-    errEl.classList.remove('show');
-    try{
-      const { data, error } = await _sb.auth.signInWithPassword({ email, password });
-      if(error) throw error;
-      btn.textContent='✓ Signed in';
-      _localMode = false;
-      await _bootUser(data.user, ov);
-    }catch(err){
-      const msg = _friendlyAuthError(err);
-      errEl.textContent=msg; errEl.classList.add('show');
-      btn.disabled=false; btn.textContent='Sign In';
-    }
-  }
-
-  // ── REGISTER ────────────────────────────────────────────────────
-  async function doRegister(){
-    const email    = document.getElementById('authRegEmail').value.trim();
-    const password = document.getElementById('authRegPassword').value;
-    const errEl    = document.getElementById('authRegError');
-    const btn      = document.getElementById('authRegisterBtn');
-    if(!email){ errEl.textContent='Please enter your email.'; errEl.classList.add('show'); return; }
-    if(!password){ errEl.textContent='Please enter a password.'; errEl.classList.add('show'); return; }
-    if(password.length<8){ errEl.textContent='Password must be at least 8 characters.'; errEl.classList.add('show'); return; }
-    btn.disabled=true; btn.textContent='Creating…';
-    errEl.classList.remove('show');
-    try{
-      const { data, error } = await _sb.auth.signUp({ email, password });
-      if(error) throw error;
-      if(data.user && data.session){
-        btn.textContent='✓ Account created';
+  // ── Wire cloud sign-in / register buttons (safe even if _sbConfigured=false) ──
+  if(_sbConfigured){
+    // ── SIGN IN ────────────────────────────────────────────────────
+    async function doSignIn(){
+      const email    = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const errEl    = document.getElementById('authError');
+      const btn      = document.getElementById('authSubmitBtn');
+      document.getElementById('authResetMsg').style.display='none';
+      if(!email){ errEl.textContent='Please enter your email.'; errEl.classList.add('show'); return; }
+      if(!password){ errEl.textContent='Please enter a password.'; errEl.classList.add('show'); return; }
+      btn.disabled=true; btn.textContent='Signing in…';
+      errEl.classList.remove('show');
+      try{
+        const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+        if(error) throw error;
+        btn.textContent='✓ Signed in';
         _localMode = false;
         await _bootUser(data.user, ov);
-      } else {
-        btn.textContent='Check your email';
-        errEl.style.background='rgba(46,196,165,.08)'; errEl.style.borderColor='rgba(46,196,165,.3)'; errEl.style.color='var(--green)';
-        errEl.textContent='✓ Confirmation email sent — click the link to activate your account.';
-        errEl.classList.add('show');
+      }catch(err){
+        const msg = _friendlyAuthError(err);
+        errEl.textContent=msg; errEl.classList.add('show');
+        btn.disabled=false; btn.textContent='Sign In';
       }
-    }catch(err){
-      const msg = _friendlyAuthError(err);
-      errEl.textContent=msg; errEl.classList.add('show');
-      btn.disabled=false; btn.textContent='Create Account';
     }
+
+    // ── REGISTER ──────────────────────────────────────────────────
+    async function doRegister(){
+      const email    = document.getElementById('authRegEmail').value.trim();
+      const password = document.getElementById('authRegPassword').value;
+      const errEl    = document.getElementById('authRegError');
+      const btn      = document.getElementById('authRegisterBtn');
+      if(!email){ errEl.textContent='Please enter your email.'; errEl.classList.add('show'); return; }
+      if(!password){ errEl.textContent='Please enter a password.'; errEl.classList.add('show'); return; }
+      if(password.length<8){ errEl.textContent='Password must be at least 8 characters.'; errEl.classList.add('show'); return; }
+      btn.disabled=true; btn.textContent='Creating…';
+      errEl.classList.remove('show');
+      try{
+        const { data, error } = await _sb.auth.signUp({ email, password });
+        if(error) throw error;
+        if(data.user && data.session){
+          btn.textContent='✓ Account created';
+          _localMode = false;
+          await _bootUser(data.user, ov);
+        } else {
+          btn.textContent='Check your email';
+          errEl.style.background='rgba(46,196,165,.08)'; errEl.style.borderColor='rgba(46,196,165,.3)'; errEl.style.color='var(--green)';
+          errEl.textContent='✓ Confirmation email sent — click the link to activate your account.';
+          errEl.classList.add('show');
+        }
+      }catch(err){
+        const msg = _friendlyAuthError(err);
+        errEl.textContent=msg; errEl.classList.add('show');
+        btn.disabled=false; btn.textContent='Create Account';
+      }
+    }
+
+    document.getElementById('authSubmitBtn').addEventListener('click', doSignIn);
+    document.getElementById('authPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doSignIn(); });
+    document.getElementById('authEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('authPassword').focus(); });
+    document.getElementById('authRegisterBtn').addEventListener('click', doRegister);
+    document.getElementById('authRegPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doRegister(); });
+    document.getElementById('authRegEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('authRegPassword').focus(); });
+
+    // ── Forgot password ────────────────────────────────────────────
+    document.getElementById('authForgotLink').addEventListener('click', async e=>{
+      e.preventDefault();
+      const email = document.getElementById('authEmail').value.trim();
+      const errEl = document.getElementById('authError');
+      if(!email){ errEl.textContent='Enter your email first.'; errEl.classList.add('show'); return; }
+      errEl.classList.remove('show');
+      try{
+        const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
+        if(error) throw error;
+        document.getElementById('authResetMsg').style.display='';
+      }catch(err){
+        errEl.textContent=_friendlyAuthError(err); errEl.classList.add('show');
+      }
+    });
+  } else {
+    // Supabase not configured — show banner, disable cloud tabs
+    document.getElementById('authConfigBanner').style.display='';
+    document.getElementById('tabLogin').disabled    = true;
+    document.getElementById('tabRegister').disabled = true;
+    document.getElementById('tabLogin').title    = 'Supabase not configured';
+    document.getElementById('tabRegister').title = 'Supabase not configured';
+    document.getElementById('tabLogin').style.opacity    = '0.35';
+    document.getElementById('tabRegister').style.opacity = '0.35';
+    _switchTab('local');
   }
 
-  document.getElementById('authSubmitBtn').addEventListener('click', doSignIn);
-  document.getElementById('authPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doSignIn(); });
-  document.getElementById('authEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('authPassword').focus(); });
-  document.getElementById('authRegisterBtn').addEventListener('click', doRegister);
-  document.getElementById('authRegPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doRegister(); });
-  document.getElementById('authRegEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('authRegPassword').focus(); });
-
-  // ── Forgot password ──────────────────────────────────────────────
-  document.getElementById('authForgotLink').addEventListener('click', async e=>{
-    e.preventDefault();
-    const email = document.getElementById('authEmail').value.trim();
-    const errEl = document.getElementById('authError');
-    if(!email){ errEl.textContent='Enter your email first.'; errEl.classList.add('show'); return; }
-    errEl.classList.remove('show');
-    try{
-      const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
-      if(error) throw error;
-      document.getElementById('authResetMsg').style.display='';
-    }catch(err){
-      errEl.textContent=_friendlyAuthError(err); errEl.classList.add('show');
-    }
-  });
-
-  // ── Config help ──────────────────────────────────────────────────
+  // ── Config help ────────────────────────────────────────────────
   document.getElementById('authConfigHelp').addEventListener('click', e=>{
     e.preventDefault();
     alert('Setup:\n\n1. supabase.com → new free project\n2. SQL Editor → run the setup SQL from the guide\n3. Project Settings → API → copy URL + anon key\n4. Edit this HTML: find SUPABASE_URL and SUPABASE_ANON near the top of the <script> and paste your values\n5. Reload — done!');
   });
+
+  // ── LOCAL MODE: restore saved local session ──────────────────────
+  const savedLocal = localStorage.getItem('dcmd_local_session');
+  if(savedLocal){
+    _localMode = true;
+    _currentUser = savedLocal;
+    ov.style.display='none';
+    await _bootUser({ email: _currentUser, id: null }, ov);
+    return;
+  }
+
+  // ── CLOUD MODE: check Supabase session (with timeout) ─────────────
+  if(!_sbConfigured) return;
+
+  let session;
+  try{
+    const sessionPromise = _sb.auth.getSession();
+    const timeoutPromise = new Promise((_,reject) => setTimeout(()=>reject(new Error('getSession timeout')), 8000));
+    const res = await Promise.race([sessionPromise, timeoutPromise]);
+    session = res?.data?.session;
+  }catch(e){ console.warn('getSession failed or timed out:', e); }
+
+  if(session?.user){
+    _localMode = false;
+    ov.style.display='none';
+    await _bootUser(session.user, ov);
+    return;
+  }
+
+  document.getElementById('authConfigBanner').style.display='none';
+
+  // Listen for auth state changes (email confirm redirects, etc.)
+  _sb.auth.onAuthStateChange(async (event, session) => {
+    if(event==='SIGNED_IN' && session?.user && !_currentUser){
+      _localMode = false;
+      await _bootUser(session.user, ov);
+    }
+    if(event==='SIGNED_OUT'){ _logout(); }
+  });
+
 }
 
 // ── Friendly error messages for common Supabase auth errors ──────────
@@ -13771,7 +13774,7 @@ async function _applyDataPack(raw){
 if(_currentUser){
   render();renderTodos();renderNotesDate();
 }
-_initAuth();
+_initAuth().catch(e => { console.error('_initAuth error:', e); });
 
 // ═══════════════════════════════════════════════════════════════════════
 // AI PLANNER — Gemini scheduling engine
