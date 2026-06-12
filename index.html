@@ -5771,7 +5771,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
   <div class="auth-card">
     <div class="auth-card-grid"></div>
     <div class="auth-logo">⚡ Daily Command</div>
-    <div id="_dbgPanel" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#0a0a0a;color:#f87171;font-family:monospace;font-size:11px;padding:10px 14px;white-space:pre-wrap;z-index:99999;max-height:40vh;overflow-y:auto;border-top:2px solid #f87171;"></div>
     <div class="auth-tagline">Personal Ops Center</div>
 
     <!-- Supabase not configured banner -->
@@ -6953,36 +6952,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
   </div>
 </div>
 
+<!-- GCal hour dropdown portal — moved here so it exists before the script runs -->
+<div id="tdrGcalPortal" role="listbox" aria-label="Select hour"></div>
+
 <script>
-// ── DIAGNOSTIC ERROR CATCHER ─────────────────────────────────────────
-(function(){
-  const _dbgLines = [];
-  function _dbgLog(type, msg) {
-    _dbgLines.push('[' + type + '] ' + msg);
-    const el = document.getElementById('_dbgPanel');
-    if (el) {
-      el.style.display = 'block';
-      el.textContent = _dbgLines.slice(-20).join('\n');
-    }
-  }
-  window._dbgLog = _dbgLog;
-  window.addEventListener('error', function(e) {
-    _dbgLog('JS ERROR', (e.message || e) + ' @ line ' + e.lineno);
-  });
-  window.addEventListener('unhandledrejection', function(e) {
-    _dbgLog('PROMISE', (e.reason && e.reason.message) ? e.reason.message : String(e.reason));
-  });
-  const _origConsoleError = console.error.bind(console);
-  console.error = function() {
-    _dbgLog('console.error', Array.from(arguments).join(' '));
-    _origConsoleError.apply(console, arguments);
-  };
-  const _origConsoleWarn = console.warn.bind(console);
-  console.warn = function() {
-    _dbgLog('console.warn', Array.from(arguments).join(' '));
-    _origConsoleWarn.apply(console, arguments);
-  };
-})();
 // ═══════════════════════════════════════════════════════════════════════
 // ⚙ SUPABASE CONFIG — fill these in after creating your project
 // 1. Go to https://supabase.com → New project
@@ -6997,17 +6970,13 @@ const _sbConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 
 let _sb = null;
 if (_sbConfigured) {
   try {
-    if (typeof supabase === 'undefined') throw new Error('supabase CDN not loaded (window.supabase is undefined)');
+    if (typeof supabase === 'undefined') throw new Error('supabase CDN not loaded');
     _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
       auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
     });
-    window._dbgLog && window._dbgLog('INIT', 'Supabase client OK — project: ' + SUPABASE_URL);
   } catch(e) {
-    window._dbgLog && window._dbgLog('INIT ERROR', 'Supabase createClient failed: ' + e.message);
-    console.warn('Supabase client could not be initialised:', e);
+    console.warn('Supabase client init failed:', e.message);
   }
-} else {
-  window._dbgLog && window._dbgLog('INIT', 'Supabase not configured — local mode only');
 }
 
 // ── Current user (email, set after auth) ─────────────────────────────
@@ -7170,7 +7139,6 @@ function _setNavUser(email){
 
 // ── Boot app after successful auth ───────────────────────────────────
 async function _bootUser(user, ov){
-  window._dbgLog && window._dbgLog('BOOT', 'Starting _bootUser for: ' + (user && user.email));
   _currentUser = user.email;
   _sbUserId    = user.id;
 
@@ -7178,14 +7146,7 @@ async function _bootUser(user, ov){
   const btn = document.getElementById('authSubmitBtn');
   if(btn){ btn.textContent='Loading data…'; btn.disabled=true; }
 
-  try {
-    window._dbgLog && window._dbgLog('BOOT', 'Calling ld()...');
-    D = await ld();
-    window._dbgLog && window._dbgLog('BOOT', 'ld() returned. Keys: ' + Object.keys(D).join(','));
-  } catch(e) {
-    window._dbgLog && window._dbgLog('BOOT ERROR', 'ld() threw: ' + e.message);
-    D = {};
-  }
+  D = await ld();
   const _ri=(k,v)=>{if(D[k]===undefined)D[k]=v;};
   _ri('_videos',{});_ri('_habits',JSON.parse(JSON.stringify(DEFAULT_HABITS)));
   _ri('_todos',{daily:[],weekly:[],unscheduled:[]});_ri('_calOvr',{});
@@ -7199,19 +7160,13 @@ async function _bootUser(user, ov){
     if(h.isActivity===undefined)h.isActivity=false;
     if(h.flexSchedule===undefined)h.flexSchedule=false;
   });
-  window._dbgLog && window._dbgLog('BOOT', 'Calling sd()...');
-  try { await sd(); } catch(e) { window._dbgLog && window._dbgLog('BOOT WARN', 'sd() threw: ' + e.message); }
-  window._dbgLog && window._dbgLog('BOOT', 'Calling _subscribeRealtime...');
+  await sd(); // ensure row exists in DB
   _subscribeRealtime();
-  window._dbgLog && window._dbgLog('BOOT', 'Hiding overlay...');
   ov.classList.add('auth-fade-out');
-  setTimeout(()=>{ ov.style.display='none'; if(btn){btn.disabled=false;} window._dbgLog && window._dbgLog('BOOT', 'Overlay hidden!'); },520);
+  setTimeout(()=>{ ov.style.display='none'; if(btn){btn.disabled=false;} },520);
   _setNavUser(_currentUser);
-  window._dbgLog && window._dbgLog('BOOT', 'Calling render()...');
-  try{ render(); window._dbgLog && window._dbgLog('BOOT', 'render() OK'); }catch(e){ window._dbgLog && window._dbgLog('BOOT ERROR', 'render() threw: ' + e.message); }
-  try{ renderTodos(); }catch(e){ window._dbgLog && window._dbgLog('BOOT ERROR', 'renderTodos threw: ' + e.message); }
-  try{ renderNotesDate(); }catch(e){ window._dbgLog && window._dbgLog('BOOT ERROR', 'renderNotesDate threw: ' + e.message); }
-  window._dbgLog && window._dbgLog('BOOT', '_bootUser complete ✓');
+  render(); renderTodos(); renderNotesDate();
+  // Show Google Calendar connect section on auth screen (in case user sees it briefly)
   setTimeout(()=>{ if(typeof window._gcalOnLogin==='function') window._gcalOnLogin(); }, 600);
 }
 
@@ -7240,24 +7195,18 @@ async function _initAuth(){
 
   // ── TAB WIRING — wire ALL buttons immediately before any async work ──
   document.getElementById('tabLogin').addEventListener('click',()=>{
-    window._dbgLog && window._dbgLog('TAB', 'Login tab clicked. _sb=' + (!!_sb) + ' _sbConfigured=' + _sbConfigured);
-    if(!_sb) { window._dbgLog && window._dbgLog('TAB', 'Blocked — _sb is null'); return; }
+    if(!_sb) return;
     _switchTab('login');
     document.getElementById('authResetMsg').style.display='none';
   });
   document.getElementById('tabRegister').addEventListener('click',()=>{
-    window._dbgLog && window._dbgLog('TAB', 'Register tab clicked. _sb=' + (!!_sb));
-    if(!_sb) { window._dbgLog && window._dbgLog('TAB', 'Blocked — _sb is null'); return; }
+    if(!_sb) return;
     _switchTab('register');
   });
-  document.getElementById('tabLocal').addEventListener('click',()=>{
-    window._dbgLog && window._dbgLog('TAB', 'This Device tab clicked');
-    _switchTab('local');
-  });
+  document.getElementById('tabLocal').addEventListener('click',()=>{ _switchTab('local'); });
 
   // ── LOCAL ENTRY BUTTON ──────────────────────────────────────────
   document.getElementById('authLocalBtn').addEventListener('click', async ()=>{
-    window._dbgLog && window._dbgLog('LOCAL', 'authLocalBtn clicked');
     const nameEl  = document.getElementById('authLocalName');
     const errEl   = document.getElementById('authLocalError');
     const btn     = document.getElementById('authLocalBtn');
@@ -7267,14 +7216,8 @@ async function _initAuth(){
     btn.disabled = true; btn.textContent = 'Loading…';
     _localMode   = true;
     _currentUser = name.toLowerCase().replace(/[^a-z0-9_]/g,'_') || 'user';
-    window._dbgLog && window._dbgLog('LOCAL', '_localMode=true, _currentUser=' + _currentUser);
-    try{ localStorage.setItem('dcmd_local_session', _currentUser); window._dbgLog && window._dbgLog('LOCAL', 'localStorage OK'); }catch(e){ window._dbgLog && window._dbgLog('LOCAL WARN', 'localStorage failed: ' + e.message); }
-    try {
-      await _bootUser({ email: name, id: null }, ov);
-    } catch(e) {
-      window._dbgLog && window._dbgLog('LOCAL ERROR', '_bootUser threw: ' + e.message + '\n' + e.stack);
-      btn.disabled = false; btn.textContent = '⚡ Enter — No Account Needed';
-    }
+    try{ localStorage.setItem('dcmd_local_session', _currentUser); }catch(e){}
+    await _bootUser({ email: name, id: null }, ov);
   });
   document.getElementById('authLocalName').addEventListener('keydown', e=>{
     if(e.key==='Enter') document.getElementById('authLocalBtn').click();
@@ -15279,8 +15222,7 @@ EXACT FORMAT:
 
 })();
 
-</script><!-- GCal hour dropdown portal — lives on body to escape any overflow:hidden parent -->
-<div id="tdrGcalPortal" role="listbox" aria-label="Select hour"></div>
+</script>
 
 </body>
 </html>
