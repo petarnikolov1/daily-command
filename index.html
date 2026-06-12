@@ -12534,11 +12534,18 @@ async function _applyDataPack(raw){
       const label = document.getElementById('authGcalConnectLabel');
       const hint  = document.getElementById('authGcalHint');
       const stat  = document.getElementById('authGcalStatus');
-      if(connected || tokenOk){
+      if(tokenOk){
         if(btn){ btn.classList.add('connected'); btn.disabled = false; }
         if(label) label.textContent = '✓ Google Calendar Connected';
         if(hint) hint.textContent = 'Auto-sync is active — schedule changes sync automatically.';
         if(stat){ stat.textContent = localStorage.getItem(KEY_USER_EMAIL)||''; stat.style.color='var(--green)'; }
+      } else if(connected){
+        // Was connected before, but the access token has expired (new
+        // browser session). One click re-authorizes — no need to visit Settings.
+        if(btn){ btn.classList.remove('connected'); btn.disabled = false; }
+        if(label) label.textContent = '↻ Reconnect Google Calendar';
+        if(hint) hint.innerHTML = 'Your session expired — tap to resume auto-sync.<br>This takes one click, no setup needed.';
+        if(stat){ stat.textContent = localStorage.getItem(KEY_USER_EMAIL)||''; stat.style.color='var(--muted)'; }
       } else {
         if(btn){ btn.classList.remove('connected'); btn.disabled = false; }
         if(label) label.textContent = 'Connect Google Calendar';
@@ -13221,6 +13228,14 @@ async function _applyDataPack(raw){
     const tokenOk = _token && Date.now() < _token.expiry_ms;
     return tokenOk || localStorage.getItem(KEY_CONNECTED) === '1';
   }
+  // True only if we actually hold a usable access token right now
+  // (memory cache or sessionStorage) — NOT just "connected at some point before".
+  function hasLiveToken(){
+    if(_token && Date.now() < _token.expiry_ms) return true;
+    const stored = _loadToken();
+    if(stored){ _token = stored; return true; }
+    return false;
+  }
 
   // ── Auto-sync on save — called by sd() after every data save ──────
   let _countdownTimer = null;
@@ -13321,7 +13336,7 @@ async function _applyDataPack(raw){
 
   // Called by _bootUser after every successful login.
   // Receives the overlay element and active button so it can dismiss them.
-  window._gcalOnLogin = function(ov, btn){
+  window._gcalOnLogin = async function(ov, btn){
     updateAuthGcalSection();
 
     // Wire the skip link to dismiss the overlay
@@ -13340,19 +13355,52 @@ async function _applyDataPack(raw){
       return;
     }
 
-    // Already connected — brief "connected" flash then dismiss
-    if(isConnected()){
+    // Already have a live access token (same-tab session) — brief
+    // "connected" flash then dismiss.
+    if(hasLiveToken()){
       updateAuthGcalSection(); // shows ✓ Connected state
       setTimeout(()=> _dismissOverlay(ov, btn), 900);
       return;
     }
 
-    // Not yet connected: keep overlay open, show the connect section.
-    // The Connect button is a REAL click event — browser allows the popup.
     const sect = document.getElementById('authGcalSection');
-    if(sect) sect.style.display = 'block';
 
-    // Re-wire the connect button to also dismiss overlay on success
+    // Previously connected, but the access token expired (new browser
+    // session / tab). Try a SILENT refresh first — if the person is still
+    // signed into Google in this browser and previously granted consent,
+    // Google can hand back a token with no visible prompt at all.
+    if(isConnected()){
+      const stat = document.getElementById('authGcalStatus');
+      if(stat){ stat.textContent = 'Resuming Google Calendar sync…'; stat.style.color='var(--teal2)'; }
+      if(sect) sect.style.display = 'block';
+      try{
+        // prompt:'' — silent if session/consent still valid. Some browsers
+        // may block the silent popup Google opens for this; don't let that
+        // hang the login screen forever.
+        await Promise.race([
+          requestToken(),
+          new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), 4000))
+        ]);
+        _gcalUpdateBtn();
+        updateAuthGcalSection();
+        if(stat){ stat.textContent = '✓ Reconnected — auto-sync resumed'; stat.style.color='var(--green)'; }
+        showToast('📅 Google Calendar reconnected — auto-sync on');
+        setTimeout(()=>{ syncToGcal(true); }, 600);
+        setTimeout(()=> _dismissOverlay(ov, btn), 1100);
+        return;
+      }catch(e){
+        // Silent refresh failed (consent expired, blocked, signed out of
+        // Google, etc). Fall through to show the one-click Reconnect button
+        // below — no need to visit Settings.
+        updateAuthGcalSection(); // now shows "↻ Reconnect Google Calendar"
+        if(stat){ stat.textContent = ''; }
+      }
+    } else {
+      // Never connected before: show the normal "Connect" section.
+      if(sect) sect.style.display = 'block';
+    }
+
+    // Re-wire the connect/reconnect button to also dismiss overlay on success
     const authBtn = document.getElementById('authGcalConnectBtn');
     if(authBtn && !authBtn._gcalAutoWired){
       authBtn._gcalAutoWired = true;
