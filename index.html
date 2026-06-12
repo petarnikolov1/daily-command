@@ -13308,7 +13308,28 @@ async function _applyDataPack(raw){
   window._gcalOnLogin = function(){
     updateAuthGcalSection();
     const sect = document.getElementById('authGcalSection');
-    if(sect && clientId()) sect.style.display = 'block';
+    if(!clientId()){
+      // No client ID yet — nothing to auto-trigger
+      return;
+    }
+    // Always show the GCal section after login
+    if(sect) sect.style.display = 'block';
+
+    // Already connected with a valid token — nothing to do
+    if(isConnected()) return;
+
+    // Not connected: wait briefly for the GSI library to finish loading,
+    // then automatically open the Google sign-in popup
+    const _tryAutoConnect = (attempt) => {
+      if(attempt > 20) return; // give up after ~4s
+      if(!window.google || !window.google.accounts){
+        setTimeout(()=> _tryAutoConnect(attempt + 1), 200);
+        return;
+      }
+      // GSI ready — trigger the popup automatically
+      connectGoogle('authGcalStatus', 'authGcalConnectLabel');
+    };
+    setTimeout(()=> _tryAutoConnect(0), 400);
   };
 
 })();
