@@ -5853,6 +5853,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
         Sync your schedule automatically after every change.<br>No setup needed — just tap & allow.
       </div>
       <div id="authGcalStatus" style="font-family:'JetBrains Mono',monospace;font-size:.6rem;text-align:center;margin-top:6px;min-height:16px;"></div>
+      <div style="text-align:center;margin-top:10px;"><a href="#" id="authGcalSkipLink" style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--muted);text-decoration:none;border-bottom:0.5px solid var(--border);">Skip for now →</a></div>
     </div>
 
     <div id="authGcalClientIdSection" style="display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border);">
@@ -7162,12 +7163,20 @@ async function _bootUser(user, ov){
   });
   await sd(); // ensure row exists in DB
   _subscribeRealtime();
-  ov.classList.add('auth-fade-out');
-  setTimeout(()=>{ ov.style.display='none'; if(btn){btn.disabled=false;} },520);
   _setNavUser(_currentUser);
   render(); renderTodos(); renderNotesDate();
-  // Show Google Calendar connect section on auth screen (in case user sees it briefly)
-  setTimeout(()=>{ if(typeof window._gcalOnLogin==='function') window._gcalOnLogin(); }, 600);
+  // Hand off overlay dismissal to the GCal handler.
+  // If GCal needs to show a connect prompt it will keep the overlay open
+  // (the button click = real user gesture = popup allowed by browser).
+  // Otherwise it dismisses immediately.
+  setTimeout(()=>{
+    if(typeof window._gcalOnLogin==='function'){
+      window._gcalOnLogin(ov, btn);
+    } else {
+      ov.classList.add('auth-fade-out');
+      setTimeout(()=>{ ov.style.display='none'; if(btn) btn.disabled=false; }, 520);
+    }
+  }, 300);
 }
 
 // ── Init auth on page load ────────────────────────────────────────────
@@ -13275,9 +13284,7 @@ async function _applyDataPack(raw){
     const cBtn = document.getElementById('gcalConnectBtn');
     if(cBtn) cBtn.addEventListener('click', ()=>connectGoogle('gcalStatus', 'gcalConnectLabel'));
 
-    // Auth screen connect button
-    const authBtn = document.getElementById('authGcalConnectBtn');
-    if(authBtn) authBtn.addEventListener('click', ()=>connectGoogle('authGcalStatus', 'authGcalConnectLabel'));
+    // Auth screen connect button is wired dynamically by _gcalOnLogin (overlay-aware)
 
     // Setup guide link
     const guideLink = document.getElementById('gcalSetupGuideLink');
@@ -13305,31 +13312,60 @@ async function _applyDataPack(raw){
   });
 
   // Show the auth gcal section once user has logged in
-  window._gcalOnLogin = function(){
+  // Helper: dismiss the auth overlay (called after GCal connect or skip)
+  function _dismissOverlay(ov, btn){
+    if(!ov) return;
+    ov.classList.add('auth-fade-out');
+    setTimeout(()=>{ ov.style.display='none'; if(btn) btn.disabled=false; }, 520);
+  }
+
+  // Called by _bootUser after every successful login.
+  // Receives the overlay element and active button so it can dismiss them.
+  window._gcalOnLogin = function(ov, btn){
     updateAuthGcalSection();
-    const sect = document.getElementById('authGcalSection');
+
+    // Wire the skip link to dismiss the overlay
+    const skipLink = document.getElementById('authGcalSkipLink');
+    if(skipLink && !skipLink._gcalWired){
+      skipLink._gcalWired = true;
+      skipLink.addEventListener('click', e=>{
+        e.preventDefault();
+        _dismissOverlay(ov, btn);
+      });
+    }
+
+    // No client ID configured — dismiss immediately (nothing to connect)
     if(!clientId()){
-      // No client ID yet — nothing to auto-trigger
+      _dismissOverlay(ov, btn);
       return;
     }
-    // Always show the GCal section after login
+
+    // Already connected — brief "connected" flash then dismiss
+    if(isConnected()){
+      updateAuthGcalSection(); // shows ✓ Connected state
+      setTimeout(()=> _dismissOverlay(ov, btn), 900);
+      return;
+    }
+
+    // Not yet connected: keep overlay open, show the connect section.
+    // The Connect button is a REAL click event — browser allows the popup.
+    const sect = document.getElementById('authGcalSection');
     if(sect) sect.style.display = 'block';
 
-    // Already connected with a valid token — nothing to do
-    if(isConnected()) return;
-
-    // Not connected: wait briefly for the GSI library to finish loading,
-    // then automatically open the Google sign-in popup
-    const _tryAutoConnect = (attempt) => {
-      if(attempt > 20) return; // give up after ~4s
-      if(!window.google || !window.google.accounts){
-        setTimeout(()=> _tryAutoConnect(attempt + 1), 200);
-        return;
-      }
-      // GSI ready — trigger the popup automatically
-      connectGoogle('authGcalStatus', 'authGcalConnectLabel');
-    };
-    setTimeout(()=> _tryAutoConnect(0), 400);
+    // Re-wire the connect button to also dismiss overlay on success
+    const authBtn = document.getElementById('authGcalConnectBtn');
+    if(authBtn && !authBtn._gcalAutoWired){
+      authBtn._gcalAutoWired = true;
+      authBtn.addEventListener('click', async ()=>{
+        await connectGoogle('authGcalStatus', 'authGcalConnectLabel');
+        // If connection succeeded, dismiss the overlay after a short delay
+        // so the user can see the "Connected!" confirmation message
+        if(isConnected()){
+          setTimeout(()=> _dismissOverlay(ov, btn), 1200);
+        }
+        // If it failed/cancelled, user sees error in status and can retry or hit Skip
+      });
+    }
   };
 
 })();
