@@ -6271,6 +6271,93 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
 
     <div class="settings-divider"></div>
 
+    <!-- Apple Reminders Sync -->
+    <div class="settings-section" id="appleSection">
+      <div class="settings-section-label">🍎 Apple Reminders Sync</div>
+      <div class="settings-section-desc">Push your to-dos to a "Daily Command" list in Apple Reminders. Requires a small proxy server you deploy yourself — Apple has no public Notes/Reminders API, so a direct browser connection isn't possible.</div>
+
+      <!-- Download embedded proxy server files -->
+      <details id="appleDownloadDetails" style="margin-bottom:12px;">
+        <summary style="cursor:pointer;font-size:.65rem;font-family:'JetBrains Mono',monospace;color:var(--teal2);padding:8px 10px;background:rgba(31,122,140,0.07);border:0.5px solid var(--teal);border-radius:var(--r-sm);list-style:none;display:flex;align-items:center;gap:6px;user-select:none;">
+          <span style="font-size:.8rem;">📦</span> Get the proxy server files (everything is bundled in this HTML)
+          <span id="appleDownloadArrow" style="margin-left:auto;transition:transform 0.2s;">▸</span>
+        </summary>
+        <div style="margin-top:8px;padding:12px 14px;background:rgba(2,35,48,0.6);border:0.5px solid var(--border-mid);border-radius:var(--r-sm);font-family:'JetBrains Mono',monospace;font-size:.62rem;line-height:1.75;color:var(--text-mid);">
+          <div style="margin-bottom:8px;">These 3 files are embedded in this page — download them, push to a GitHub repo, and deploy (see README for steps). You don't need anything from anywhere else.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="settings-sync-btn" id="appleDownloadServerBtn">⬇ server.js</button>
+            <button class="settings-sync-btn" id="appleDownloadPkgBtn">⬇ package.json</button>
+            <button class="settings-sync-btn" id="appleDownloadReadmeBtn">⬇ README.md</button>
+          </div>
+        </div>
+      </details>
+
+      <!-- Connected state -->
+      <div id="appleConnectedCard" style="display:none;background:rgba(46,196,165,0.06);border:0.5px solid rgba(46,196,165,0.3);border-radius:var(--r-md);padding:12px 14px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:1rem;">✅</span>
+          <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:.82rem;color:var(--green);">Connected</span>
+          <span id="appleConnectedEmail" style="font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.5;">
+          Syncing to the <strong style="color:var(--teal2);">Daily Command</strong> list in Apple Reminders.
+        </div>
+      </div>
+
+      <!-- Setup Guide (collapsible) -->
+      <details id="appleGuideDetails" style="margin-bottom:12px;">
+        <summary style="cursor:pointer;font-size:.65rem;font-family:'JetBrains Mono',monospace;color:var(--teal2);padding:8px 10px;background:rgba(31,122,140,0.07);border:0.5px solid var(--teal);border-radius:var(--r-sm);list-style:none;display:flex;align-items:center;gap:6px;user-select:none;">
+          <span style="font-size:.8rem;">⚙</span> Setup Guide — Deploy the sync proxy + get an app-specific password
+          <span id="appleGuideArrow" style="margin-left:auto;transition:transform 0.2s;">▸</span>
+        </summary>
+        <div style="margin-top:8px;padding:12px 14px;background:rgba(2,35,48,0.6);border:0.5px solid var(--border-mid);border-radius:var(--r-sm);font-family:'JetBrains Mono',monospace;font-size:.62rem;line-height:1.75;color:var(--text-mid);">
+          <div style="color:var(--amber2);font-family:'Syne',sans-serif;font-weight:700;font-size:.68rem;margin-bottom:8px;letter-spacing:.04em;">ONE-TIME SETUP</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">1.</span><span>Go to <a href="https://appleid.apple.com/" target="_blank" rel="noopener" style="color:var(--teal2);">appleid.apple.com</a> → <strong style="color:var(--text);">Sign-In and Security → App-Specific Passwords</strong> → generate one (looks like <code style="color:var(--amber2);">xxxx-xxxx-xxxx-xxxx</code>).</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">2.</span><span>Deploy the included <strong style="color:var(--text);">apple-reminders-sync</strong> proxy server (Node.js) to Render, Railway, or any host — see its README for step-by-step instructions.</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--teal2);font-weight:700;min-width:18px;">3.</span><span>Paste the deployed proxy's URL, your Apple ID email, and the app-specific password below, then click <strong style="color:var(--text);">Connect / Test</strong>.</span></div>
+          </div>
+          <div style="margin-top:10px;padding:8px 10px;background:rgba(232,163,56,0.07);border:0.5px solid rgba(232,163,56,0.25);border-radius:6px;color:var(--amber2);">
+            ⚠ Use an <strong>app-specific password</strong>, never your real Apple ID password. Your credentials are sent only to the proxy server you deploy and aren't stored by Daily Command beyond your own browser.
+          </div>
+        </div>
+      </details>
+
+      <div class="settings-key-wrap" id="appleProxyUrlWrap">
+        <input type="text" class="settings-key-input" id="settingsAppleProxyUrl" placeholder="Proxy URL  (https://your-app.onrender.com)" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="settings-key-wrap" id="appleIdWrap" style="margin-top:8px;">
+        <input type="email" class="settings-key-input" id="settingsAppleId" placeholder="Apple ID email" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="settings-key-wrap" id="applePwWrap" style="margin-top:8px;">
+        <input type="password" class="settings-key-input" id="settingsApplePw" placeholder="App-specific password  (xxxx-xxxx-xxxx-xxxx)" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="settings-save-key-btn" id="settingsSaveAppleBtn" style="margin-top:10px;">Save</button>
+      <div class="settings-key-status" id="appleSaveStatus"></div>
+
+      <button class="gcal-sync-btn" id="appleConnectBtn" style="margin-top:12px;">
+        <span class="gcal-icon">🍎</span>
+        <span id="appleConnectLabel">Connect / Test</span>
+      </button>
+      <button class="gcal-sync-btn" id="appleSyncBtn" style="margin-top:8px;" disabled>
+        <span class="gcal-icon">⇅</span>
+        <span id="appleSyncLabel">Sync To-Dos Now</span>
+      </button>
+      <div class="gcal-status" id="appleStatus"></div>
+
+      <div id="appleAutoSyncRow" style="display:none;align-items:center;gap:8px;margin-top:10px;font-size:.68rem;color:var(--teal2);font-family:'JetBrains Mono',monospace;padding:8px 12px;background:rgba(46,196,165,0.05);border:0.5px solid rgba(46,196,165,0.2);border-radius:var(--r-sm);cursor:pointer;">
+        <input type="checkbox" id="appleAutoSyncToggle" style="accent-color:var(--teal2);">
+        <span>Auto-sync to-dos a few seconds after every change</span>
+      </div>
+      <div id="appleAutoSyncStatus" style="font-size:.62rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:4px;min-height:14px;"></div>
+
+      <div style="margin-top:10px;font-size:.6rem;color:var(--muted2);font-family:'JetBrains Mono',monospace;line-height:1.6;">
+        Note: this syncs to <strong style="color:var(--text-mid);">Apple Reminders</strong>, not Apple Notes — Apple provides no API for Notes at all.
+      </div>
+    </div>
+
+    <div class="settings-divider"></div>
+
         <!-- Sync section (moved from separate modal) -->
     <div class="settings-section">
       <div class="settings-section-label">⇅ Data Sync</div>
@@ -6998,6 +7085,7 @@ async function sd(){
     _sdDebounce = setTimeout(()=>{
       try{ localStorage.setItem(_localKey(), JSON.stringify(D)); }catch(e){ console.error('Local save error:',e); }
       if(window._scheduleAutoSync) window._scheduleAutoSync();
+    if(window._appleScheduleAutoSync) window._appleScheduleAutoSync();
     }, 400);
     return;
   }
@@ -7014,6 +7102,7 @@ async function sd(){
       if(error) console.error('Save error:', error.message);
     } catch(e){ console.error('Save exception:', e); }
     if(window._scheduleAutoSync) window._scheduleAutoSync();
+    if(window._appleScheduleAutoSync) window._appleScheduleAutoSync();
   }, 800);
 }
 
@@ -15326,6 +15415,225 @@ EXACT FORMAT:
   else _wire();
 
 })();
+
+
+// ══════════════════════════════════════════════════════════════════
+// APPLE REMINDERS SYNC ENGINE
+// Pushes to-dos to a "Daily Command" list in Apple Reminders via the
+// apple-reminders-sync proxy server (Apple has no public Notes/Reminders
+// API — see Settings → Apple Reminders Sync for setup).
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  const KEY_PROXY = 'dcmd_apple_proxy_url';
+  const KEY_ID    = 'dcmd_apple_id';
+  const KEY_PW    = 'dcmd_apple_pw';
+  const KEY_MAP   = 'dcmd_apple_map';
+  const KEY_AUTO  = 'dcmd_apple_autosync';
+  const KEY_CONNECTED = 'dcmd_apple_connected';
+  const LIST_NAME = 'Daily Command';
+  const PROXY_FILES = {
+    'server.js': "Ly8g4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCi8vIEFwcGxlIFJlbWluZGVycyBTeW5jIFByb3h5Ci8vCi8vIEFwcGxlIGRvZXMgbm90IHByb3ZpZGUgYSBwdWJsaWMgUkVTVC9PQXV0aCBBUEkgZm9yIFJlbWluZGVycyBvciBOb3Rlcy4KLy8gSG93ZXZlciwgaUNsb3VkIERPRVMgc3VwcG9ydCB0aGUgb3BlbiBDYWxEQVYgcHJvdG9jb2wgZm9yIFJlbWluZGVycwovLyAodG8tZG8gbGlzdHMgYXJlIGV4cG9zZWQgYXMgVlRPRE8gaXRlbXMgaW4gQ2FsREFWIGNvbGxlY3Rpb25zKS4KLy8KLy8gQ2FsREFWIGZyb20gYSBicm93c2VyIGlzIGJsb2NrZWQgYnkgQ09SUyAoQXBwbGUncyBzZXJ2ZXJzIGRvbid0IHNlbmQKLy8gQWNjZXNzLUNvbnRyb2wtQWxsb3ctT3JpZ2luIGhlYWRlcnMpLCBzbyB0aGlzIHNtYWxsIHNlcnZlciBzaXRzIGluIHRoZQovLyBtaWRkbGU6IHlvdXIgRGFpbHkgQ29tbWFuZCBwYWdlIGNhbGxzIFRISVMgc2VydmVyIG92ZXIgSFRUUFMsIGFuZCB0aGlzCi8vIHNlcnZlciB0YWxrcyBDYWxEQVYgdG8gQXBwbGUgb24geW91ciBiZWhhbGYuCi8vCi8vIFNFQ1VSSVRZIE5PVEVTOgovLyAgLSBZb3UgYXV0aGVudGljYXRlIHdpdGggeW91ciBBcHBsZSBJRCBlbWFpbCArIGFuIEFQUC1TUEVDSUZJQyBQQVNTV09SRAovLyAgICAoZ2VuZXJhdGUgb25lIGF0IGh0dHBzOi8vYXBwbGVpZC5hcHBsZS5jb20gLT4gU2lnbi1JbiBhbmQgU2VjdXJpdHkgLT4KLy8gICAgQXBwLVNwZWNpZmljIFBhc3N3b3JkcykuIE5FVkVSIHVzZSB5b3VyIHJlYWwgQXBwbGUgSUQgcGFzc3dvcmQuCi8vICAtIFRoaXMgc2VydmVyIGRvZXMgTk9UIHN0b3JlIHlvdXIgY3JlZGVudGlhbHMg4oCUIHRoZXkncmUgc2VudCBvbiBldmVyeQovLyAgICByZXF1ZXN0IGZyb20gdGhlIGJyb3dzZXIgYW5kIHVzZWQgb25seSBmb3IgdGhhdCByZXF1ZXN0LgovLyAgLSBTdGlsbCwgb25seSBkZXBsb3kgdGhpcyBzb21ld2hlcmUgWU9VIGNvbnRyb2wsIG92ZXIgSFRUUFMsIGFuZCBkb24ndAovLyAgICBzaGFyZSB0aGUgVVJMLiBUcmVhdCBpdCBsaWtlIHlvdXIgb3duIHBlcnNvbmFsIGJhY2tlbmQuCi8vCi8vIERlcGxveTogc2VlIFJFQURNRS5tZCAoUmVuZGVyLCBSYWlsd2F5LCBGbHkuaW8sIG9yIGFueSBOb2RlIGhvc3Qgd29yaykuCi8vIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAoKY29uc3QgZXhwcmVzcyA9IHJlcXVpcmUoJ2V4cHJlc3MnKTsKY29uc3QgY29ycyA9IHJlcXVpcmUoJ2NvcnMnKTsKY29uc3QgaHR0cHMgPSByZXF1aXJlKCdodHRwcycpOwpjb25zdCBjcnlwdG8gPSByZXF1aXJlKCdjcnlwdG8nKTsKY29uc3QgeyBYTUxQYXJzZXIgfSA9IHJlcXVpcmUoJ2Zhc3QteG1sLXBhcnNlcicpOwoKY29uc3QgYXBwID0gZXhwcmVzcygpOwphcHAudXNlKGNvcnMoKSk7CmFwcC51c2UoZXhwcmVzcy5qc29uKHsgbGltaXQ6ICcybWInIH0pKTsKCmNvbnN0IHhtbFBhcnNlciA9IG5ldyBYTUxQYXJzZXIoewogIGlnbm9yZUF0dHJpYnV0ZXM6IGZhbHNlLAogIGF0dHJpYnV0ZU5hbWVQcmVmaXg6ICdAXycsCiAgcmVtb3ZlTlNQcmVmaXg6IHRydWUsCiAgcGFyc2VUYWdWYWx1ZTogZmFsc2UsCn0pOwoKLy8g4pSA4pSAIExvdy1sZXZlbCBDYWxEQVYgcmVxdWVzdCBoZWxwZXIgKHJhdyBodHRwcywgbWFudWFsIHJlZGlyZWN0IGZvbGxvdykg4pSA4pSACmZ1bmN0aW9uIGNhbGRhdlJlcXVlc3QoaG9zdCwgcGF0aCwgbWV0aG9kLCBhdXRoLCBib2R5LCBleHRyYUhlYWRlcnMgPSB7fSkgewogIHJldHVybiBuZXcgUHJvbWlzZSgocmVzb2x2ZSwgcmVqZWN0KSA9PiB7CiAgICBjb25zdCBoZWFkZXJzID0gT2JqZWN0LmFzc2lnbigKICAgICAgewogICAgICAgIEF1dGhvcml6YXRpb246IGF1dGgsCiAgICAgICAgRGVwdGg6ICcwJywKICAgICAgICAnVXNlci1BZ2VudCc6ICdEYWlseUNvbW1hbmQtQXBwbGVTeW5jLzEuMCcsCiAgICAgIH0sCiAgICAgIGV4dHJhSGVhZGVycwogICAgKTsKICAgIGlmIChib2R5KSB7CiAgICAgIGhlYWRlcnNbJ0NvbnRlbnQtVHlwZSddID0gaGVhZGVyc1snQ29udGVudC1UeXBlJ10gfHwgJ2FwcGxpY2F0aW9uL3htbDsgY2hhcnNldD11dGYtOCc7CiAgICAgIGhlYWRlcnNbJ0NvbnRlbnQtTGVuZ3RoJ10gPSBCdWZmZXIuYnl0ZUxlbmd0aChib2R5KTsKICAgIH0KICAgIGNvbnN0IHJlcSA9IGh0dHBzLnJlcXVlc3QoeyBob3N0bmFtZTogaG9zdCwgcGF0aCwgbWV0aG9kLCBoZWFkZXJzIH0sIChyZXMpID0+IHsKICAgICAgY29uc3QgY2h1bmtzID0gW107CiAgICAgIHJlcy5vbignZGF0YScsIChjKSA9PiBjaHVua3MucHVzaChjKSk7CiAgICAgIHJlcy5vbignZW5kJywgKCkgPT4KICAgICAgICByZXNvbHZlKHsgc3RhdHVzOiByZXMuc3RhdHVzQ29kZSwgaGVhZGVyczogcmVzLmhlYWRlcnMsIGJvZHk6IEJ1ZmZlci5jb25jYXQoY2h1bmtzKS50b1N0cmluZygndXRmOCcpIH0pCiAgICAgICk7CiAgICB9KTsKICAgIHJlcS5vbignZXJyb3InLCByZWplY3QpOwogICAgaWYgKGJvZHkpIHJlcS53cml0ZShib2R5KTsKICAgIHJlcS5lbmQoKTsKICB9KTsKfQoKLy8gRm9sbG93cyBvbmUgcmVkaXJlY3QgKEFwcGxlJ3MgQ2FsREFWIGVudHJ5cG9pbnQgcmVkaXJlY3RzIHRvIGEgcGFydGl0aW9uZWQKLy8gc2VydmVyIGxpa2UgcDEyMy1jYWxkYXYuaWNsb3VkLmNvbSkKYXN5bmMgZnVuY3Rpb24gY2FsZGF2UmVxdWVzdEZvbGxvdyhob3N0LCBwYXRoLCBtZXRob2QsIGF1dGgsIGJvZHksIGV4dHJhSGVhZGVycykgewogIGxldCByZXMgPSBhd2FpdCBjYWxkYXZSZXF1ZXN0KGhvc3QsIHBhdGgsIG1ldGhvZCwgYXV0aCwgYm9keSwgZXh0cmFIZWFkZXJzKTsKICBpZiAoWzMwMSwgMzAyLCAzMDcsIDMwOF0uaW5jbHVkZXMocmVzLnN0YXR1cykgJiYgcmVzLmhlYWRlcnMubG9jYXRpb24pIHsKICAgIGNvbnN0IHUgPSBuZXcgVVJMKHJlcy5oZWFkZXJzLmxvY2F0aW9uLCBgaHR0cHM6Ly8ke2hvc3R9JHtwYXRofWApOwogICAgcmV0dXJuIHsgaG9zdDogdS5ob3N0bmFtZSwgcmVzOiBhd2FpdCBjYWxkYXZSZXF1ZXN0KHUuaG9zdG5hbWUsIHUucGF0aG5hbWUgfHwgJy8nLCBtZXRob2QsIGF1dGgsIGJvZHksIGV4dHJhSGVhZGVycykgfTsKICB9CiAgcmV0dXJuIHsgaG9zdCwgcmVzIH07Cn0KCmZ1bmN0aW9uIGJhc2ljQXV0aChhcHBsZUlkLCBwYXNzd29yZCkgewogIHJldHVybiAnQmFzaWMgJyArIEJ1ZmZlci5mcm9tKGAke2FwcGxlSWR9OiR7cGFzc3dvcmR9YCkudG9TdHJpbmcoJ2Jhc2U2NCcpOwp9CgpmdW5jdGlvbiBhcnIoeCkgewogIHJldHVybiB4ID09PSB1bmRlZmluZWQgfHwgeCA9PT0gbnVsbCA/IFtdIDogQXJyYXkuaXNBcnJheSh4KSA/IHggOiBbeF07Cn0KCi8vIFJlY3Vyc2l2ZWx5IHNlYXJjaCBhIHBhcnNlZC1YTUwgb2JqZWN0IGZvciB0aGUgZmlyc3Qgb2NjdXJyZW5jZSBvZiBga2V5YApmdW5jdGlvbiBkZWVwRmluZChvYmosIGtleSkgewogIGlmIChvYmogPT0gbnVsbCkgcmV0dXJuIHVuZGVmaW5lZDsKICBpZiAoQXJyYXkuaXNBcnJheShvYmopKSB7CiAgICBmb3IgKGNvbnN0IGl0ZW0gb2Ygb2JqKSB7CiAgICAgIGNvbnN0IHIgPSBkZWVwRmluZChpdGVtLCBrZXkpOwogICAgICBpZiAociAhPT0gdW5kZWZpbmVkKSByZXR1cm4gcjsKICAgIH0KICAgIHJldHVybiB1bmRlZmluZWQ7CiAgfQogIGlmICh0eXBlb2Ygb2JqID09PSAnb2JqZWN0JykgewogICAgaWYgKGtleSBpbiBvYmopIHJldHVybiBvYmpba2V5XTsKICAgIGZvciAoY29uc3QgayBvZiBPYmplY3Qua2V5cyhvYmopKSB7CiAgICAgIGNvbnN0IHIgPSBkZWVwRmluZChvYmpba10sIGtleSk7CiAgICAgIGlmIChyICE9PSB1bmRlZmluZWQpIHJldHVybiByOwogICAgfQogIH0KICByZXR1cm4gdW5kZWZpbmVkOwp9CgpmdW5jdGlvbiBwYXJzZVhNTCh0ZXh0KSB7CiAgcmV0dXJuIHhtbFBhcnNlci5wYXJzZSh0ZXh0KTsKfQoKLy8g4pSA4pSAIFhNTCByZXF1ZXN0IGJvZGllcyDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAKY29uc3QgUFJJTkNJUEFMX0JPRFkgPSBgPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiID8+CjxEOnByb3BmaW5kIHhtbG5zOkQ9IkRBVjoiPgogIDxEOnByb3A+PEQ6Y3VycmVudC11c2VyLXByaW5jaXBhbC8+PC9EOnByb3A+CjwvRDpwcm9wZmluZD5gOwoKY29uc3QgSE9NRV9TRVRfQk9EWSA9IGA8P3htbCB2ZXJzaW9uPSIxLjAiIGVuY29kaW5nPSJ1dGYtOCIgPz4KPEQ6cHJvcGZpbmQgeG1sbnM6RD0iREFWOiIgeG1sbnM6Qz0idXJuOmlldGY6cGFyYW1zOnhtbDpuczpjYWxkYXYiPgogIDxEOnByb3A+PEM6Y2FsZW5kYXItaG9tZS1zZXQvPjwvRDpwcm9wPgo8L0Q6cHJvcGZpbmQ+YDsKCmNvbnN0IENPTExFQ1RJT05TX0JPRFkgPSBgPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiID8+CjxEOnByb3BmaW5kIHhtbG5zOkQ9IkRBVjoiIHhtbG5zOkM9InVybjppZXRmOnBhcmFtczp4bWw6bnM6Y2FsZGF2IiB4bWxuczpDUz0iaHR0cDovL2NhbGVuZGFyc2VydmVyLm9yZy9ucy8iPgogIDxEOnByb3A+CiAgICA8RDpyZXNvdXJjZXR5cGUvPgogICAgPEQ6ZGlzcGxheW5hbWUvPgogICAgPEM6c3VwcG9ydGVkLWNhbGVuZGFyLWNvbXBvbmVudC1zZXQvPgogIDwvRDpwcm9wPgo8L0Q6cHJvcGZpbmQ+YDsKCmZ1bmN0aW9uIG1rY2FsZW5kYXJCb2R5KGRpc3BsYXlOYW1lKSB7CiAgcmV0dXJuIGA8P3htbCB2ZXJzaW9uPSIxLjAiIGVuY29kaW5nPSJ1dGYtOCIgPz4KPEM6bWtjYWxlbmRhciB4bWxuczpEPSJEQVY6IiB4bWxuczpDPSJ1cm46aWV0ZjpwYXJhbXM6eG1sOm5zOmNhbGRhdiI+CiAgPEQ6c2V0PgogICAgPEQ6cHJvcD4KICAgICAgPEQ6ZGlzcGxheW5hbWU+JHtlc2NhcGVYTUwoZGlzcGxheU5hbWUpfTwvRDpkaXNwbGF5bmFtZT4KICAgICAgPEM6c3VwcG9ydGVkLWNhbGVuZGFyLWNvbXBvbmVudC1zZXQ+CiAgICAgICAgPEM6Y29tcCBuYW1lPSJWVE9ETyIvPgogICAgICA8L0M6c3VwcG9ydGVkLWNhbGVuZGFyLWNvbXBvbmVudC1zZXQ+CiAgICA8L0Q6cHJvcD4KICA8L0Q6c2V0Pgo8L0M6bWtjYWxlbmRhcj5gOwp9CgpmdW5jdGlvbiBlc2NhcGVYTUwocykgewogIHJldHVybiBTdHJpbmcocykucmVwbGFjZSgvWzw+JiciXS9nLCAoYykgPT4gKHsgJzwnOiAnJmx0OycsICc+JzogJyZndDsnLCAnJic6ICcmYW1wOycsICInIjogJyZhcG9zOycsICciJzogJyZxdW90OycgfVtjXSkpOwp9CgovLyDilIDilIAgRGlzY292ZXJ5OiBmaW5kIHRoZSByaWdodCBzZXJ2ZXIgKyByZW1pbmRlcnMgImhvbWUiIGNvbGxlY3Rpb24g4pSA4pSA4pSA4pSA4pSA4pSACmFzeW5jIGZ1bmN0aW9uIGRpc2NvdmVyKGF1dGgpIHsKICBsZXQgaG9zdCA9ICdjYWxkYXYuaWNsb3VkLmNvbSc7CgogIGxldCB7IGhvc3Q6IGgxLCByZXMgfSA9IGF3YWl0IGNhbGRhdlJlcXVlc3RGb2xsb3coaG9zdCwgJy8nLCAnUFJPUEZJTkQnLCBhdXRoLCBQUklOQ0lQQUxfQk9EWSwgeyBEZXB0aDogJzAnIH0pOwogIGhvc3QgPSBoMTsKICBpZiAocmVzLnN0YXR1cyA9PT0gNDAxKSB0aHJvdyBuZXcgRXJyb3IoJ0FwcGxlIElEIG9yIGFwcC1zcGVjaWZpYyBwYXNzd29yZCByZWplY3RlZCAoNDAxKScpOwogIGlmIChyZXMuc3RhdHVzICE9PSAyMDcpIHRocm93IG5ldyBFcnJvcihgUHJpbmNpcGFsIGRpc2NvdmVyeSBmYWlsZWQgKEhUVFAgJHtyZXMuc3RhdHVzfSlgKTsKCiAgY29uc3QgcHJpbmNpcGFsSHJlZiA9IGRlZXBGaW5kKHBhcnNlWE1MKHJlcy5ib2R5KSwgJ2N1cnJlbnQtdXNlci1wcmluY2lwYWwnKT8uaHJlZjsKICBpZiAoIXByaW5jaXBhbEhyZWYpIHRocm93IG5ldyBFcnJvcignQ291bGQgbm90IGZpbmQgY3VycmVudC11c2VyLXByaW5jaXBhbCBpbiByZXNwb25zZScpOwoKICBjb25zdCByMiA9IGF3YWl0IGNhbGRhdlJlcXVlc3QoaG9zdCwgcHJpbmNpcGFsSHJlZiwgJ1BST1BGSU5EJywgYXV0aCwgSE9NRV9TRVRfQk9EWSwgeyBEZXB0aDogJzAnIH0pOwogIGlmIChyMi5zdGF0dXMgIT09IDIwNykgdGhyb3cgbmV3IEVycm9yKGBDYWxlbmRhci1ob21lLXNldCBsb29rdXAgZmFpbGVkIChIVFRQICR7cjIuc3RhdHVzfSlgKTsKCiAgY29uc3QgaG9tZUhyZWYgPSBkZWVwRmluZChwYXJzZVhNTChyMi5ib2R5KSwgJ2NhbGVuZGFyLWhvbWUtc2V0Jyk/LmhyZWY7CiAgaWYgKCFob21lSHJlZikgdGhyb3cgbmV3IEVycm9yKCdDb3VsZCBub3QgZmluZCBjYWxlbmRhci1ob21lLXNldCBpbiByZXNwb25zZScpOwoKICByZXR1cm4geyBob3N0LCBwcmluY2lwYWxIcmVmLCBob21lSHJlZiB9Owp9CgovLyBMaXN0IGFsbCBWVE9ETy1jYXBhYmxlIGNvbGxlY3Rpb25zIChpLmUuIFJlbWluZGVycyBsaXN0cykKYXN5bmMgZnVuY3Rpb24gbGlzdFRhc2tMaXN0cyhhdXRoLCBob3N0LCBob21lSHJlZikgewogIGNvbnN0IHJlcyA9IGF3YWl0IGNhbGRhdlJlcXVlc3QoaG9zdCwgaG9tZUhyZWYsICdQUk9QRklORCcsIGF1dGgsIENPTExFQ1RJT05TX0JPRFksIHsgRGVwdGg6ICcxJyB9KTsKICBpZiAocmVzLnN0YXR1cyAhPT0gMjA3KSB0aHJvdyBuZXcgRXJyb3IoYExpc3RpbmcgcmVtaW5kZXIgbGlzdHMgZmFpbGVkIChIVFRQICR7cmVzLnN0YXR1c30pYCk7CgogIGNvbnN0IHBhcnNlZCA9IHBhcnNlWE1MKHJlcy5ib2R5KTsKICBjb25zdCBtcyA9IHBhcnNlZC5tdWx0aXN0YXR1cyB8fCBwYXJzZWQ7CiAgY29uc3QgcmVzcG9uc2VzID0gYXJyKG1zLnJlc3BvbnNlKTsKCiAgY29uc3QgbGlzdHMgPSBbXTsKICBmb3IgKGNvbnN0IHIgb2YgcmVzcG9uc2VzKSB7CiAgICBjb25zdCBwcm9wID0gZGVlcEZpbmQociwgJ3Byb3AnKTsKICAgIGlmICghcHJvcCkgY29udGludWU7CiAgICBjb25zdCByZXNvdXJjZXR5cGUgPSBwcm9wLnJlc291cmNldHlwZTsKICAgIGNvbnN0IGlzQ2FsZW5kYXIgPSByZXNvdXJjZXR5cGUgJiYgZGVlcEZpbmQocmVzb3VyY2V0eXBlLCAnY2FsZW5kYXInKSAhPT0gdW5kZWZpbmVkOwogICAgaWYgKCFpc0NhbGVuZGFyKSBjb250aW51ZTsKICAgIGNvbnN0IGNvbXBTZXQgPSBkZWVwRmluZChwcm9wLCAnc3VwcG9ydGVkLWNhbGVuZGFyLWNvbXBvbmVudC1zZXQnKTsKICAgIGNvbnN0IGNvbXBzID0gYXJyKGNvbXBTZXQgJiYgY29tcFNldC5jb21wKTsKICAgIGNvbnN0IHN1cHBvcnRzVG9kbyA9IGNvbXBzLnNvbWUoKGMpID0+IGMgJiYgY1snQF9uYW1lJ10gPT09ICdWVE9ETycpOwogICAgaWYgKCFzdXBwb3J0c1RvZG8pIGNvbnRpbnVlOwogICAgbGlzdHMucHVzaCh7CiAgICAgIGhyZWY6IHIuaHJlZiwKICAgICAgZGlzcGxheW5hbWU6IHR5cGVvZiBwcm9wLmRpc3BsYXluYW1lID09PSAnc3RyaW5nJyA/IHByb3AuZGlzcGxheW5hbWUgOiAnKHVudGl0bGVkKScsCiAgICB9KTsKICB9CiAgcmV0dXJuIGxpc3RzOwp9CgovLyBGaW5kIGEgcmVtaW5kZXJzIGxpc3QgYnkgbmFtZSwgb3IgY3JlYXRlIGl0IChNS0NBTEVOREFSKSBpZiBtaXNzaW5nCmFzeW5jIGZ1bmN0aW9uIGZpbmRPckNyZWF0ZUxpc3QoYXV0aCwgaG9zdCwgaG9tZUhyZWYsIGxpc3ROYW1lKSB7CiAgY29uc3QgbGlzdHMgPSBhd2FpdCBsaXN0VGFza0xpc3RzKGF1dGgsIGhvc3QsIGhvbWVIcmVmKTsKICBjb25zdCBleGlzdGluZyA9IGxpc3RzLmZpbmQoKGwpID0+IGwuZGlzcGxheW5hbWUgPT09IGxpc3ROYW1lKTsKICBpZiAoZXhpc3RpbmcpIHJldHVybiBleGlzdGluZy5ocmVmOwoKICBjb25zdCBiYXNlID0gaG9tZUhyZWYuZW5kc1dpdGgoJy8nKSA/IGhvbWVIcmVmIDogaG9tZUhyZWYgKyAnLyc7CiAgY29uc3QgbmV3SHJlZiA9IGAke2Jhc2V9JHtjcnlwdG8ucmFuZG9tVVVJRCgpfS9gOwogIGNvbnN0IG1rID0gYXdhaXQgY2FsZGF2UmVxdWVzdChob3N0LCBuZXdIcmVmLCAnTUtDQUxFTkRBUicsIGF1dGgsIG1rY2FsZW5kYXJCb2R5KGxpc3ROYW1lKSwgewogICAgJ0NvbnRlbnQtVHlwZSc6ICdhcHBsaWNhdGlvbi94bWw7IGNoYXJzZXQ9dXRmLTgnLAogIH0pOwogIGlmIChtay5zdGF0dXMgPj0gMjAwICYmIG1rLnN0YXR1cyA8IDMwMCkgcmV0dXJuIG5ld0hyZWY7CiAgdGhyb3cgbmV3IEVycm9yKGBDb3VsZCBub3QgY3JlYXRlICIke2xpc3ROYW1lfSIgbGlzdCAoSFRUUCAke21rLnN0YXR1c30pOiAke21rLmJvZHkuc2xpY2UoMCwgMjAwKX1gKTsKfQoKLy8g4pSA4pSAIFZUT0RPIChpQ2FsZW5kYXIpIGdlbmVyYXRpb24g4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSACmZ1bmN0aW9uIGVzY2FwZUlDUyhzKSB7CiAgcmV0dXJuIFN0cmluZyhzIHx8ICcnKQogICAgLnJlcGxhY2UoL1xcL2csICdcXFxcJykKICAgIC5yZXBsYWNlKC9cbi9nLCAnXFxuJykKICAgIC5yZXBsYWNlKC8sL2csICdcXCwnKQogICAgLnJlcGxhY2UoLzsvZywgJ1xcOycpOwp9CgpmdW5jdGlvbiBpY3NUaW1lc3RhbXAoZCkgewogIHJldHVybiBkLnRvSVNPU3RyaW5nKCkucmVwbGFjZSgvWy06XS9nLCAnJykuc3BsaXQoJy4nKVswXSArICdaJzsKfQoKZnVuY3Rpb24gYnVpbGRWVG9kbyh0b2RvKSB7CiAgY29uc3QgdWlkID0gYGRhaWx5Y29tbWFuZC0ke3RvZG8uaWR9QGRhaWx5Y29tbWFuZGA7CiAgY29uc3Qgbm93ID0gaWNzVGltZXN0YW1wKG5ldyBEYXRlKCkpOwogIGNvbnN0IHByaW9yaXR5ID0gdG9kby5wcmlvcml0eSA9PT0gJ2hpZ2gnID8gMSA6IHRvZG8ucHJpb3JpdHkgPT09ICdsb3cnID8gOSA6IDU7CiAgY29uc3Qgc3RhdHVzID0gdG9kby5kb25lID8gJ0NPTVBMRVRFRCcgOiAnTkVFRFMtQUNUSU9OJzsKCiAgY29uc3QgbGluZXMgPSBbCiAgICAnQkVHSU46VkNBTEVOREFSJywKICAgICdWRVJTSU9OOjIuMCcsCiAgICAnUFJPRElEOi0vL0RhaWx5Q29tbWFuZC8vVG9Eb1N5bmMvL0VOJywKICAgICdCRUdJTjpWVE9ETycsCiAgICBgVUlEOiR7dWlkfWAsCiAgICBgU1VNTUFSWToke2VzY2FwZUlDUyh0b2RvLnRleHQpfWAsCiAgICBgU1RBVFVTOiR7c3RhdHVzfWAsCiAgICBgUFJJT1JJVFk6JHtwcmlvcml0eX1gLAogICAgYERUU1RBTVA6JHtub3d9YCwKICAgIGBMQVNULU1PRElGSUVEOiR7bm93fWAsCiAgXTsKICBpZiAodG9kby5kb25lKSB7CiAgICBsaW5lcy5wdXNoKGBDT01QTEVURUQ6JHtub3d9YCwgJ1BFUkNFTlQtQ09NUExFVEU6MTAwJyk7CiAgfQogIGlmICh0b2RvLmxpc3QpIHsKICAgIGxpbmVzLnB1c2goYENBVEVHT1JJRVM6JHtlc2NhcGVJQ1ModG9kby5saXN0KX1gKTsKICB9CiAgbGluZXMucHVzaCgnRU5EOlZUT0RPJywgJ0VORDpWQ0FMRU5EQVInKTsKICByZXR1cm4gbGluZXMuam9pbignXHJcbicpOwp9CgovLyDilIDilIAgU3luYzogZGlmZiBjdXJyZW50IHRvZG9zIGFnYWluc3QgcHJldmlvdXNseS1zeW5jZWQgbWFwIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgAphc3luYyBmdW5jdGlvbiBzeW5jVG9kb3MoYXV0aCwgaG9zdCwgY29sbGVjdGlvbkhyZWYsIHRvZG9zLCBwcmV2aW91c01hcCkgewogIGNvbnN0IG1hcCA9IHt9OwogIGNvbnN0IGVycm9ycyA9IFtdOwogIGNvbnN0IGN1cnJlbnRJZHMgPSBuZXcgU2V0KHRvZG9zLm1hcCgodCkgPT4gdC5pZCkpOwogIGNvbnN0IGJhc2UgPSBjb2xsZWN0aW9uSHJlZi5lbmRzV2l0aCgnLycpID8gY29sbGVjdGlvbkhyZWYgOiBjb2xsZWN0aW9uSHJlZiArICcvJzsKCiAgLy8gMSkgUmVtb3ZlIHJlbWluZGVycyBmb3IgdG9kb3MgdGhhdCBubyBsb25nZXIgZXhpc3QgbG9jYWxseQogIGZvciAoY29uc3QgW2lkLCBpbmZvXSBvZiBPYmplY3QuZW50cmllcyhwcmV2aW91c01hcCB8fCB7fSkpIHsKICAgIGlmICghY3VycmVudElkcy5oYXMoaWQpICYmIGluZm8gJiYgaW5mby5ocmVmKSB7CiAgICAgIHRyeSB7CiAgICAgICAgYXdhaXQgY2FsZGF2UmVxdWVzdChob3N0LCBpbmZvLmhyZWYsICdERUxFVEUnLCBhdXRoLCBudWxsKTsKICAgICAgfSBjYXRjaCAoZSkgewogICAgICAgIGVycm9ycy5wdXNoKHsgaWQsIGVycm9yOiAnZGVsZXRlX2ZhaWxlZDogJyArIGUubWVzc2FnZSB9KTsKICAgICAgfQogICAgfQogIH0KCiAgLy8gMikgQ3JlYXRlIC8gdXBkYXRlIGEgcmVtaW5kZXIgZm9yIGVhY2ggY3VycmVudCB0b2RvCiAgZm9yIChjb25zdCB0b2RvIG9mIHRvZG9zKSB7CiAgICBjb25zdCBmaWxlbmFtZSA9IGBkYWlseWNvbW1hbmQtJHt0b2RvLmlkfS5pY3NgOwogICAgY29uc3QgaHJlZiA9IGJhc2UgKyBmaWxlbmFtZTsKICAgIGNvbnN0IGljcyA9IGJ1aWxkVlRvZG8odG9kbyk7CiAgICB0cnkgewogICAgICBjb25zdCByZXMgPSBhd2FpdCBjYWxkYXZSZXF1ZXN0KGhvc3QsIGhyZWYsICdQVVQnLCBhdXRoLCBpY3MsIHsKICAgICAgICAnQ29udGVudC1UeXBlJzogJ3RleHQvY2FsZW5kYXI7IGNoYXJzZXQ9dXRmLTgnLAogICAgICB9KTsKICAgICAgaWYgKHJlcy5zdGF0dXMgPj0gMjAwICYmIHJlcy5zdGF0dXMgPCAzMDApIHsKICAgICAgICBtYXBbdG9kby5pZF0gPSB7IGhyZWYsIGV0YWc6IHJlcy5oZWFkZXJzLmV0YWcgfHwgbnVsbCwgc3luY2VkQXQ6IERhdGUubm93KCkgfTsKICAgICAgfSBlbHNlIHsKICAgICAgICBlcnJvcnMucHVzaCh7IGlkOiB0b2RvLmlkLCBlcnJvcjogYHB1dF9mYWlsZWRfJHtyZXMuc3RhdHVzfWAsIGRldGFpbDogcmVzLmJvZHkuc2xpY2UoMCwgMjAwKSB9KTsKICAgICAgICBpZiAocHJldmlvdXNNYXAgJiYgcHJldmlvdXNNYXBbdG9kby5pZF0pIG1hcFt0b2RvLmlkXSA9IHByZXZpb3VzTWFwW3RvZG8uaWRdOwogICAgICB9CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIGVycm9ycy5wdXNoKHsgaWQ6IHRvZG8uaWQsIGVycm9yOiBlLm1lc3NhZ2UgfSk7CiAgICAgIGlmIChwcmV2aW91c01hcCAmJiBwcmV2aW91c01hcFt0b2RvLmlkXSkgbWFwW3RvZG8uaWRdID0gcHJldmlvdXNNYXBbdG9kby5pZF07CiAgICB9CiAgfQoKICByZXR1cm4geyBtYXAsIGVycm9ycyB9Owp9CgovLyDilIDilIAgUm91dGVzIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgAphcHAuZ2V0KCcvJywgKHJlcSwgcmVzKSA9PiB7CiAgcmVzLmpzb24oeyBvazogdHJ1ZSwgc2VydmljZTogJ2FwcGxlLXJlbWluZGVycy1zeW5jLXByb3h5JyB9KTsKfSk7CgovLyBWZXJpZnkgY3JlZGVudGlhbHMgKyBzaG93IGF2YWlsYWJsZSBSZW1pbmRlcnMgbGlzdHMKYXBwLnBvc3QoJy9hcGkvdGVzdCcsIGFzeW5jIChyZXEsIHJlcykgPT4gewogIGNvbnN0IHsgYXBwbGVJZCwgcGFzc3dvcmQgfSA9IHJlcS5ib2R5IHx8IHt9OwogIGlmICghYXBwbGVJZCB8fCAhcGFzc3dvcmQpIHJldHVybiByZXMuc3RhdHVzKDQwMCkuanNvbih7IG9rOiBmYWxzZSwgZXJyb3I6ICdNaXNzaW5nIGFwcGxlSWQgb3IgcGFzc3dvcmQnIH0pOwogIHRyeSB7CiAgICBjb25zdCBhdXRoID0gYmFzaWNBdXRoKGFwcGxlSWQsIHBhc3N3b3JkKTsKICAgIGNvbnN0IHsgaG9zdCwgaG9tZUhyZWYgfSA9IGF3YWl0IGRpc2NvdmVyKGF1dGgpOwogICAgY29uc3QgbGlzdHMgPSBhd2FpdCBsaXN0VGFza0xpc3RzKGF1dGgsIGhvc3QsIGhvbWVIcmVmKTsKICAgIHJlcy5qc29uKHsgb2s6IHRydWUsIGxpc3RzOiBsaXN0cy5tYXAoKGwpID0+IGwuZGlzcGxheW5hbWUpIH0pOwogIH0gY2F0Y2ggKGUpIHsKICAgIHJlcy5zdGF0dXMoNDAxKS5qc29uKHsgb2s6IGZhbHNlLCBlcnJvcjogZS5tZXNzYWdlIH0pOwogIH0KfSk7CgovLyBQdXNoIHRoZSBjdXJyZW50IHRvLWRvIGxpc3QgaW50byBhIFJlbWluZGVycyBsaXN0IChjcmVhdGVzIGl0IGlmIG5lZWRlZCkKYXBwLnBvc3QoJy9hcGkvc3luYycsIGFzeW5jIChyZXEsIHJlcykgPT4gewogIGNvbnN0IHsgYXBwbGVJZCwgcGFzc3dvcmQsIGxpc3ROYW1lLCB0b2RvcywgcHJldmlvdXNNYXAgfSA9IHJlcS5ib2R5IHx8IHt9OwogIGlmICghYXBwbGVJZCB8fCAhcGFzc3dvcmQpIHJldHVybiByZXMuc3RhdHVzKDQwMCkuanNvbih7IG9rOiBmYWxzZSwgZXJyb3I6ICdNaXNzaW5nIGFwcGxlSWQgb3IgcGFzc3dvcmQnIH0pOwogIGlmICghQXJyYXkuaXNBcnJheSh0b2RvcykpIHJldHVybiByZXMuc3RhdHVzKDQwMCkuanNvbih7IG9rOiBmYWxzZSwgZXJyb3I6ICd0b2RvcyBtdXN0IGJlIGFuIGFycmF5JyB9KTsKCiAgdHJ5IHsKICAgIGNvbnN0IGF1dGggPSBiYXNpY0F1dGgoYXBwbGVJZCwgcGFzc3dvcmQpOwogICAgY29uc3QgeyBob3N0LCBob21lSHJlZiB9ID0gYXdhaXQgZGlzY292ZXIoYXV0aCk7CiAgICBjb25zdCB0YXJnZXRMaXN0ID0gbGlzdE5hbWUgfHwgJ0RhaWx5IENvbW1hbmQnOwogICAgY29uc3QgY29sbGVjdGlvbkhyZWYgPSBhd2FpdCBmaW5kT3JDcmVhdGVMaXN0KGF1dGgsIGhvc3QsIGhvbWVIcmVmLCB0YXJnZXRMaXN0KTsKICAgIGNvbnN0IHsgbWFwLCBlcnJvcnMgfSA9IGF3YWl0IHN5bmNUb2RvcyhhdXRoLCBob3N0LCBjb2xsZWN0aW9uSHJlZiwgdG9kb3MsIHByZXZpb3VzTWFwIHx8IHt9KTsKICAgIHJlcy5qc29uKHsgb2s6IHRydWUsIGxpc3Q6IHRhcmdldExpc3QsIG1hcCwgZXJyb3JzLCBzeW5jZWQ6IHRvZG9zLmxlbmd0aCwgZmFpbGVkOiBlcnJvcnMubGVuZ3RoIH0pOwogIH0gY2F0Y2ggKGUpIHsKICAgIHJlcy5zdGF0dXMoNTAwKS5qc29uKHsgb2s6IGZhbHNlLCBlcnJvcjogZS5tZXNzYWdlIH0pOwogIH0KfSk7Cgpjb25zdCBQT1JUID0gcHJvY2Vzcy5lbnYuUE9SVCB8fCAzMDAwOwphcHAubGlzdGVuKFBPUlQsICgpID0+IGNvbnNvbGUubG9nKGBBcHBsZSBSZW1pbmRlcnMgc3luYyBwcm94eSBsaXN0ZW5pbmcgb24gOiR7UE9SVH1gKSk7Cg==",
+    'package.json': "ewogICJuYW1lIjogImFwcGxlLXJlbWluZGVycy1zeW5jLXByb3h5IiwKICAidmVyc2lvbiI6ICIxLjAuMCIsCiAgImRlc2NyaXB0aW9uIjogIlRpbnkgQ2FsREFWIHByb3h5IHRoYXQgbGV0cyBEYWlseSBDb21tYW5kIHB1c2ggdG8tZG9zIHRvIEFwcGxlIFJlbWluZGVycyAoaUNsb3VkKSIsCiAgIm1haW4iOiAic2VydmVyLmpzIiwKICAidHlwZSI6ICJjb21tb25qcyIsCiAgImVuZ2luZXMiOiB7CiAgICAibm9kZSI6ICI+PTE4IgogIH0sCiAgInNjcmlwdHMiOiB7CiAgICAic3RhcnQiOiAibm9kZSBzZXJ2ZXIuanMiCiAgfSwKICAiZGVwZW5kZW5jaWVzIjogewogICAgImNvcnMiOiAiXjIuOC41IiwKICAgICJleHByZXNzIjogIl40LjE5LjIiLAogICAgImZhc3QteG1sLXBhcnNlciI6ICJeNC40LjEiCiAgfQp9Cg==",
+    'README.md': "IyBBcHBsZSBSZW1pbmRlcnMgU3luYyBQcm94eQoKTGV0cyBEYWlseSBDb21tYW5kIHB1c2ggeW91ciB0by1kb3MgaW50byAqKkFwcGxlIFJlbWluZGVycyoqIChhIHNlcGFyYXRlCmFwcCBmcm9tIEFwcGxlIE5vdGVzIOKAlCBzZWUgbm90ZSBhdCB0aGUgYm90dG9tKS4KCiMjIFdoeSB0aGlzIGV4aXN0cwoKQXBwbGUgZG9lc24ndCBvZmZlciBhIHB1YmxpYyB3ZWIgQVBJIGZvciBSZW1pbmRlcnMuIGlDbG91ZCAqZG9lcyogc3VwcG9ydApDYWxEQVYgKGFuIG9wZW4gc3RhbmRhcmQpIGZvciBSZW1pbmRlcnMsIGJ1dCBBcHBsZSdzIENhbERBViBzZXJ2ZXJzIGRvbid0CmFsbG93IGRpcmVjdCBicm93c2VyIHJlcXVlc3RzIChubyBDT1JTIGhlYWRlcnMpLiBTbyB0aGlzIHRpbnkgc2VydmVyIHNpdHMKaW4gYmV0d2VlbjogeW91ciBEYWlseSBDb21tYW5kIHBhZ2Ug4oaSIHRoaXMgc2VydmVyIOKGkiBBcHBsZSdzIENhbERBViBzZXJ2ZXJzLgoKSXQgaG9sZHMgKipubyBkYXRhYmFzZSoqIGFuZCBzdG9yZXMgKipubyBjcmVkZW50aWFscyoqIOKAlCBldmVyeSByZXF1ZXN0CmNhcnJpZXMgeW91ciBBcHBsZSBJRCArIGFwcC1zcGVjaWZpYyBwYXNzd29yZCwgdXNlZCBvbmx5IGZvciB0aGF0IG9uZQpyZXF1ZXN0LCB0aGVuIGRpc2NhcmRlZC4KCiMjIDEuIEdldCBhbiBhcHAtc3BlY2lmaWMgcGFzc3dvcmQKCjEuIEdvIHRvIGh0dHBzOi8vYXBwbGVpZC5hcHBsZS5jb20g4oaSIHNpZ24gaW4uCjIuICoqU2lnbi1JbiBhbmQgU2VjdXJpdHkqKiDihpIgKipBcHAtU3BlY2lmaWMgUGFzc3dvcmRzKiog4oaSIGdlbmVyYXRlIG9uZS4KMy4gTmFtZSBpdCBzb21ldGhpbmcgbGlrZSAiRGFpbHkgQ29tbWFuZCIuIENvcHkgdGhlIHBhc3N3b3JkCiAgIChgeHh4eC14eHh4LXh4eHgteHh4eGAgZm9ybWF0KSDigJQgeW91J2xsIHBhc3RlIHRoaXMgaW50byBEYWlseSBDb21tYW5kJ3MKICAgc2V0dGluZ3MsICoqbm90KiogeW91ciByZWFsIEFwcGxlIElEIHBhc3N3b3JkLgoKIyMgMi4gRGVwbG95IHRoaXMgc2VydmVyCgpBbnkgTm9kZSAxOCsgaG9zdCB3b3Jrcy4gRWFzaWVzdCBvcHRpb25zOgoKIyMjIE9wdGlvbiBBIOKAlCBSZW5kZXIuY29tIChmcmVlIHRpZXIpCjEuIFB1c2ggdGhpcyBmb2xkZXIgdG8gYSBuZXcgR2l0SHViIHJlcG8uCjIuIE9uIFJlbmRlcjogKipOZXcg4oaSIFdlYiBTZXJ2aWNlKiog4oaSIGNvbm5lY3QgdGhlIHJlcG8uCjMuIEJ1aWxkIGNvbW1hbmQ6IGBucG0gaW5zdGFsbGAgIMK3ICBTdGFydCBjb21tYW5kOiBgbnBtIHN0YXJ0YAo0LiBEZXBsb3kuIFJlbmRlciBnaXZlcyB5b3UgYSBVUkwgbGlrZSBgaHR0cHM6Ly95b3VyLWFwcC5vbnJlbmRlci5jb21gLgoKIyMjIE9wdGlvbiBCIOKAlCBSYWlsd2F5IC8gRmx5LmlvClNhbWUgaWRlYTogYG5wbSBpbnN0YWxsICYmIG5wbSBzdGFydGAsIGV4cG9zZSBgUE9SVGAuCgojIyMgT3B0aW9uIEMg4oCUIFJ1biBsb2NhbGx5IGZvciB0ZXN0aW5nCmBgYGJhc2gKY2QgYXBwbGUtcmVtaW5kZXJzLXN5bmMKbnBtIGluc3RhbGwKbnBtIHN0YXJ0CmBgYApTZXJ2ZXIgcnVucyBvbiBgaHR0cDovL2xvY2FsaG9zdDozMDAwYC4gRm9yIERhaWx5IENvbW1hbmQgKGhvc3RlZCBvbgpIVFRQUykgdG8gY2FsbCBhIGxvY2FsIHNlcnZlciB5b3UnbGwgbGlrZWx5IG5lZWQgYSB0dW5uZWwKKGUuZy4gYG5ncm9rIGh0dHAgMzAwMGApIHNvIGl0J3Mgc2VydmVkIG92ZXIgSFRUUFMgdG9vLgoKIyMgMy4gQ29ubmVjdCBpdCBpbiBEYWlseSBDb21tYW5kCgoxLiBPcGVuIERhaWx5IENvbW1hbmQg4oaSICoqU2V0dGluZ3MqKiDihpIgKirwn42OIEFwcGxlIFJlbWluZGVycyBTeW5jKiouCjIuIFBhc3RlIHlvdXIgZGVwbG95ZWQgcHJveHkgVVJMIChlLmcuIGBodHRwczovL3lvdXItYXBwLm9ucmVuZGVyLmNvbWApLgozLiBFbnRlciB5b3VyIEFwcGxlIElEIGVtYWlsIGFuZCB0aGUgYXBwLXNwZWNpZmljIHBhc3N3b3JkIGZyb20gc3RlcCAxLgo0LiBDbGljayAqKkNvbm5lY3QgLyBUZXN0KiouIE9uIHN1Y2Nlc3MgaXQnbGwgbGlzdCB5b3VyIFJlbWluZGVycyBsaXN0cwogICBhbmQgY3JlYXRlIGEgbmV3IG9uZSBjYWxsZWQgKioiRGFpbHkgQ29tbWFuZCIqKiBvbiBmaXJzdCBzeW5jLgo1LiBUb2dnbGUgKipBdXRvLXN5bmMqKiBpZiB5b3Ugd2FudCBpdCB0byBwdXNoIGF1dG9tYXRpY2FsbHkgYSBmZXcKICAgc2Vjb25kcyBhZnRlciBldmVyeSBjaGFuZ2UgKHNhbWUgcGF0dGVybiBhcyBHb29nbGUgQ2FsZW5kYXIgc3luYykuCgojIyBXaGF0IGdldHMgc3luY2VkCgotIE9uZS13YXk6ICoqRGFpbHkgQ29tbWFuZCDihpIgQXBwbGUgUmVtaW5kZXJzKiogKGNoYW5nZXMgbWFkZSBkaXJlY3RseSBpbgogIHRoZSBSZW1pbmRlcnMgYXBwIGFyZSBub3QgcHVsbGVkIGJhY2sgaW4pLgotIEVhY2ggdG8tZG8gYmVjb21lcyBhIHJlbWluZGVyIGluIGEgZGVkaWNhdGVkICJEYWlseSBDb21tYW5kIiBsaXN0LCB3aXRoCiAgbWF0Y2hpbmcgdGl0bGUsIGNvbXBsZXRlZCBzdGF0ZSwgYW5kIHByaW9yaXR5LgotIERlbGV0aW5nIGEgdG8tZG8gaW4gRGFpbHkgQ29tbWFuZCBkZWxldGVzIHRoZSBtYXRjaGluZyByZW1pbmRlci4KCiMjIEEgbm90ZSBvbiBBcHBsZSBOb3RlcwoKVGhpcyBwcm94eSBzeW5jcyB0byAqKkFwcGxlIFJlbWluZGVycyoqLCBub3QgdGhlIE5vdGVzIGFwcCDigJQgQXBwbGUKcHJvdmlkZXMgbm8gQVBJIChvZmZpY2lhbCBvciBDYWxEQVYtZXF1aXZhbGVudCkgZm9yIE5vdGVzIGF0IGFsbC4gVGhlCm9ubHkgd2F5cyB0byBnZXQgY29udGVudCBpbnRvIE5vdGVzIGludm9sdmUgZWl0aGVyIHVub2ZmaWNpYWwvcmV2ZXJzZQotZW5naW5lZXJlZCBpQ2xvdWQgZW5kcG9pbnRzICh3aGljaCByZXF1aXJlIHlvdXIgcmVhbCBBcHBsZSBJRCBwYXNzd29yZAphbmQgY2FuIHRyaWdnZXIgYWNjb3VudCBzZWN1cml0eSBmbGFncykgb3Igb24tZGV2aWNlIFNob3J0Y3V0cwphdXRvbWF0aW9ucy4gUmVtaW5kZXJzIHdhcyB0aGUgY2xvc2VzdCByZWFsLCBzdXBwb3J0ZWQgZXF1aXZhbGVudCBmb3IKInRvLWRvcywiIHdoaWNoIGlzIHdoeSB0aGlzIHByb3h5IHRhcmdldHMgdGhhdCBpbnN0ZWFkLgoKIyMgU2VjdXJpdHkgcmVtaW5kZXJzCgotIFVzZSBhbiAqKmFwcC1zcGVjaWZpYyBwYXNzd29yZCoqLCBuZXZlciB5b3VyIHJlYWwgQXBwbGUgSUQgcGFzc3dvcmQuCi0gRGVwbG95IHRoaXMgc29tZXdoZXJlIHByaXZhdGUg4oCUIGFueW9uZSB3aXRoIHRoZSBVUkwgKyB5b3VyIGNyZWRlbnRpYWxzCiAgY291bGQgcmVhZC9tb2RpZnkgeW91ciBSZW1pbmRlcnMuCi0gUmV2b2tlIHRoZSBhcHAtc3BlY2lmaWMgcGFzc3dvcmQgYW55IHRpbWUgYXQgYXBwbGVpZC5hcHBsZS5jb20gaWYgeW91CiAgd2FudCB0byBjdXQgb2ZmIGFjY2Vzcy4K",
+  };
+  function downloadProxyFile(name){
+    const b64 = PROXY_FILES[name];
+    if(!b64) return;
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], {type:'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }
+  let _syncing = false;
+  let _autoTimer = null;
+
+  function cfg(){
+    return {
+      proxy: (localStorage.getItem(KEY_PROXY)||'').trim().replace(/\/$/,''),
+      appleId: (localStorage.getItem(KEY_ID)||'').trim(),
+      pw: localStorage.getItem(KEY_PW)||'',
+    };
+  }
+  function isConfigured(){ const c=cfg(); return !!(c.proxy && c.appleId && c.pw); }
+  function isConnected(){ return isConfigured() && localStorage.getItem(KEY_CONNECTED)==='1'; }
+  function loadMap(){ try{ return JSON.parse(localStorage.getItem(KEY_MAP)||'{}'); }catch(e){ return {}; } }
+  function saveMap(m){ try{ localStorage.setItem(KEY_MAP, JSON.stringify(m)); }catch(e){} }
+
+  function setStatus(text, color){
+    const el = document.getElementById('appleStatus');
+    if(el){ el.textContent = text; el.style.color = color || 'var(--muted)'; }
+  }
+  function setAutoStatus(text, color){
+    const el = document.getElementById('appleAutoSyncStatus');
+    if(el){ el.textContent = text; el.style.color = color || 'var(--muted)'; }
+  }
+
+  function gatherTodos(){
+    const out = [];
+    ['daily','weekly','unscheduled'].forEach(col=>{
+      (D._todos && D._todos[col] || []).forEach(t=>{
+        out.push({ id: t.id, text: t.text, done: !!t.done, priority: t.priority||'med', list: col });
+      });
+    });
+    return out;
+  }
+
+  function updateUI(){
+    const c = cfg();
+    const connected = isConnected();
+    const card  = document.getElementById('appleConnectedCard');
+    const email = document.getElementById('appleConnectedEmail');
+    const syncBtn = document.getElementById('appleSyncBtn');
+    const connectBtn = document.getElementById('appleConnectBtn');
+    const connectLabel = document.getElementById('appleConnectLabel');
+    const autoRow = document.getElementById('appleAutoSyncRow');
+    const autoToggle = document.getElementById('appleAutoSyncToggle');
+
+    // prefill saved fields (without re-showing the password)
+    const pUrl = document.getElementById('settingsAppleProxyUrl');
+    const pId  = document.getElementById('settingsAppleId');
+    if(pUrl && !pUrl.value) pUrl.value = c.proxy;
+    if(pId && !pId.value) pId.value = c.appleId;
+
+    if(card) card.style.display = connected ? 'block' : 'none';
+    if(email) email.textContent = c.appleId;
+    if(syncBtn) syncBtn.disabled = !isConfigured();
+    if(connectLabel) connectLabel.textContent = connected ? '✓ Connected — Re-test' : 'Connect / Test';
+    if(connectBtn) connectBtn.classList.toggle('connected', connected);
+
+    if(autoRow) autoRow.style.display = isConfigured() ? 'flex' : 'none';
+    if(autoToggle) autoToggle.checked = localStorage.getItem(KEY_AUTO)==='1';
+  }
+
+  async function testConnection(){
+    const c = cfg();
+    if(!c.proxy || !c.appleId || !c.pw){ setStatus('⚠ Save your proxy URL, Apple ID and app-specific password first.', 'var(--red)'); return; }
+    setStatus('Testing connection…', 'var(--teal2)');
+    const btn = document.getElementById('appleConnectBtn');
+    if(btn) btn.disabled = true;
+    try{
+      const res = await fetch(c.proxy + '/api/test', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ appleId: c.appleId, password: c.pw })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok) throw new Error(data.error || ('HTTP '+res.status));
+      localStorage.setItem(KEY_CONNECTED,'1');
+      const lists = (data.lists||[]).join(', ') || '(none yet — "Daily Command" will be created on first sync)';
+      setStatus(`✓ Connected! Existing Reminders lists: ${lists}`, 'var(--green)');
+      showToast('🍎 Apple Reminders connected');
+    }catch(e){
+      localStorage.removeItem(KEY_CONNECTED);
+      setStatus('✗ ' + e.message, 'var(--red)');
+    }finally{
+      if(btn) btn.disabled = false;
+      updateUI();
+    }
+  }
+
+  async function syncToApple(silent){
+    if(!isConfigured()) return;
+    if(_syncing) return;
+    _syncing = true;
+    const c = cfg();
+    const btn = document.getElementById('appleSyncBtn');
+    const label = document.getElementById('appleSyncLabel');
+    if(btn) btn.disabled = true;
+    if(label) label.textContent = 'Syncing…';
+    if(!silent) setStatus('Syncing to-dos to Apple Reminders…', 'var(--teal2)');
+    setAutoStatus('Syncing…', 'var(--teal2)');
+    try{
+      const todos = gatherTodos();
+      const previousMap = loadMap();
+      const res = await fetch(c.proxy + '/api/sync', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ appleId: c.appleId, password: c.pw, listName: LIST_NAME, todos, previousMap })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok) throw new Error(data.error || ('HTTP '+res.status));
+      saveMap(data.map||{});
+      localStorage.setItem(KEY_CONNECTED,'1');
+      const ts = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      const failNote = data.failed ? ` (${data.failed} item${data.failed>1?'s':''} failed)` : '';
+      setStatus(`✓ Synced ${data.synced} to-dos${failNote} — ${ts}`, data.failed ? 'var(--amber2)' : 'var(--green)');
+      setAutoStatus(`Last synced ${ts}`, 'var(--muted)');
+      if(!silent) showToast('🍎 Synced to Apple Reminders');
+    }catch(e){
+      setStatus('✗ ' + e.message, 'var(--red)');
+      setAutoStatus('Last sync failed — ' + e.message, 'var(--red)');
+    }finally{
+      _syncing = false;
+      if(btn) btn.disabled = !isConfigured();
+      if(label) label.textContent = 'Sync To-Dos Now';
+      updateUI();
+    }
+  }
+
+  // ── Auto-sync hook — called from sd() after every save ─────────────
+  window._appleScheduleAutoSync = function(){
+    if(localStorage.getItem(KEY_AUTO) !== '1') return;
+    if(!isConfigured()) return;
+    clearTimeout(_autoTimer);
+    setAutoStatus('Syncing in 5s…', 'var(--muted)');
+    _autoTimer = setTimeout(()=>{ syncToApple(true); }, 5000);
+  };
+
+  function wire(){
+    updateUI();
+
+    document.getElementById('settingsSaveAppleBtn')?.addEventListener('click', ()=>{
+      const proxy = (document.getElementById('settingsAppleProxyUrl')?.value||'').trim().replace(/\/$/,'');
+      const appleId = (document.getElementById('settingsAppleId')?.value||'').trim();
+      const pw = document.getElementById('settingsApplePw')?.value||'';
+      const st = document.getElementById('appleSaveStatus');
+      if(!proxy || !appleId || !pw){ if(st){ st.textContent='⚠ Fill in all three fields.'; st.style.color='var(--red)'; } return; }
+      if(!/^https?:\/\//.test(proxy)){ if(st){ st.textContent='⚠ Proxy URL must start with http:// or https://'; st.style.color='var(--red)'; } return; }
+      try{
+        localStorage.setItem(KEY_PROXY, proxy);
+        localStorage.setItem(KEY_ID, appleId);
+        localStorage.setItem(KEY_PW, pw);
+        localStorage.removeItem(KEY_CONNECTED);
+      }catch(e){}
+      if(st){ st.textContent='✓ Saved — click Connect / Test below.'; st.style.color='var(--green)'; setTimeout(()=>{ st.textContent=''; }, 3000); }
+      const pwEl = document.getElementById('settingsApplePw'); if(pwEl) pwEl.value='';
+      updateUI();
+    });
+
+    document.getElementById('appleDownloadServerBtn')?.addEventListener('click', ()=> downloadProxyFile('server.js'));
+    document.getElementById('appleDownloadPkgBtn')?.addEventListener('click', ()=> downloadProxyFile('package.json'));
+    document.getElementById('appleDownloadReadmeBtn')?.addEventListener('click', ()=> downloadProxyFile('README.md'));
+
+    document.getElementById('appleConnectBtn')?.addEventListener('click', testConnection);
+    document.getElementById('appleSyncBtn')?.addEventListener('click', ()=> syncToApple(false));
+
+    document.getElementById('appleAutoSyncToggle')?.addEventListener('change', (e)=>{
+      localStorage.setItem(KEY_AUTO, e.target.checked ? '1' : '0');
+      setAutoStatus(e.target.checked ? 'Auto-sync enabled — to-dos sync ~5s after each change' : 'Auto-sync off', 'var(--muted)');
+    });
+
+    const guide = document.getElementById('appleGuideDetails');
+    const arrow = document.getElementById('appleGuideArrow');
+    if(guide && arrow){
+      guide.addEventListener('toggle', ()=>{ arrow.style.transform = guide.open ? 'rotate(90deg)' : 'rotate(0deg)'; });
+    }
+
+    const dlGuide = document.getElementById('appleDownloadDetails');
+    const dlArrow = document.getElementById('appleDownloadArrow');
+    if(dlGuide && dlArrow){
+      dlGuide.addEventListener('toggle', ()=>{ dlArrow.style.transform = dlGuide.open ? 'rotate(90deg)' : 'rotate(0deg)'; });
+    }
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+  else wire();
+})();
+
+
 
 </script>
 
