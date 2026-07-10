@@ -610,6 +610,10 @@
   box-shadow:0 2px 12px rgba(0,0,0,0.4),0 0 8px var(--acc-dim,rgba(31,122,140,0.2));
   z-index:20;
 }
+/* The block's own height is scaled to its duration in minutes on the timeline
+   (e.g. 20-60px), which is nowhere near enough room for the time editor panel.
+   When editing, let the editor escape that box instead of being clipped. */
+.aip-tl-block.aip-editing{ overflow:visible; z-index:60; }
 .aip-tl-block-inner{
   display:flex;
   align-items:center;
@@ -675,15 +679,22 @@
   color:var(--amber);
   flex-shrink:0;
 }
-/* Inline editor inside block */
+/* Inline editor inside block — floats below the block as its own card so it
+   is never squashed/clipped by the block's timeline-scaled height. */
 .aip-tl-block-editor{
   display:none;
-  padding:6px 8px;
-  background:rgba(1,22,32,0.95);
-  border-top:0.5px solid var(--border-mid);
+  position:absolute;
+  top:100%;left:-1px;right:-1px;
+  margin-top:2px;
+  padding:8px;
+  background:var(--s3,rgba(1,22,32,0.98));
+  border:0.5px solid var(--border-hi);
+  border-radius:8px;
+  box-shadow:0 10px 24px rgba(0,0,0,0.5);
   gap:6px;
   align-items:center;
   flex-wrap:wrap;
+  z-index:61;
 }
 .aip-tl-block-editor.open{ display:flex; }
 .aip-tl-block-editor label{
@@ -4651,10 +4662,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
   position:absolute;opacity:0;pointer-events:none;width:0;height:0;
 }
 /* The visible drum — hours get click-to-dropdown, minutes keep scroll/arrows */
+/* NOTE: fixed height + justify-content:center + absolutely-positioned arrows/caret
+   ensures the hour value and minute value always sit on the exact same baseline,
+   regardless of whether the minute drum's up/down arrows are present. */
 .tdr{
-  display:flex;flex-direction:column;align-items:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
   cursor:pointer;user-select:none;
-  min-width:32px;padding:3px 2px;
+  min-width:32px;height:34px;padding:3px 2px;
   position:relative;
   border-radius:5px;
   transition:background .15s;
@@ -4666,23 +4680,32 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
   color:var(--text);line-height:1;letter-spacing:.01em;
   transition:transform .1s,opacity .1s;
 }
-.tdr-empty .tdr-val{ color:var(--muted); font-size:.75rem; }
-/* Hour drum: show a tiny caret instead of scroll arrows */
+/* NOTE: keep the same font-size as the filled state (.95rem) — shrinking the
+   placeholder text here used to make the empty "--" hour sit on a different
+   baseline than the "00" minute next to it, since both drums are centered via
+   flex but a smaller line-box centers slightly differently than a larger one. */
+.tdr-empty .tdr-val{ color:var(--muted); }
+/* Hour drum: show a tiny caret instead of scroll arrows — absolutely positioned
+   so it never shifts the value's vertical center */
 .tdr[data-type="h"]::after{
   content:'▾';
+  position:absolute;bottom:1px;left:50%;transform:translateX(-50%);
   font-size:.5rem;color:var(--teal2);
   line-height:1;opacity:0;transition:opacity .15s;
-  display:block;margin-top:1px;
 }
 .tdr[data-type="h"]:hover::after,
 .tdr[data-type="h"]:focus::after{ opacity:1; }
 .tdr[data-type="h"].tdr-open::after{ opacity:1;color:var(--teal3); }
-/* Minute drum: keep scroll arrows */
+/* Minute drum: keep scroll arrows — absolutely positioned so the value stays
+   vertically centred, matching the hour drum exactly */
 .tdr-arr{
+  position:absolute;left:50%;transform:translateX(-50%);
   background:none;border:none;padding:0;margin:0;cursor:pointer;
-  color:var(--teal2);font-size:.5rem;line-height:1;display:block;text-align:center;
-  transition:color .15s;opacity:0;
+  color:var(--teal2);font-size:.5rem;line-height:1;text-align:center;
+  transition:color .15s,opacity .15s;opacity:0;
 }
+.tdr-arr[data-dir="-1"]{ top:1px; }
+.tdr-arr[data-dir="1"]{ bottom:1px; }
 .tdr[data-type="m"]:hover .tdr-arr,
 .tdr[data-type="m"]:focus .tdr-arr{ opacity:1; }
 .tdr-arr:hover{color:#fff;}
@@ -11010,47 +11033,72 @@ for (let hr = 6; hr <= 23; hr++) {
   cont.appendChild(row);
   const itemsEl = row.querySelector(`#dv-${hr}`);
 
-  // 1. Timed habits - use getEffectiveTime so AI per-day times are respected
+  // 1 & 2. Timed habits + events starting in this hour — collected together
+  // first so overlapping items (e.g. two habits scheduled at the same time)
+  // can be laid out side-by-side in columns instead of stacking fully on top
+  // of one another (which made the earlier one unclickable/invisible).
+  const hrItems = []; // {sMin, eMin, el}
+
   D._habits.forEach(h => {
     const eff = getEffectiveTime(h, key);
     if (!isSched(h, dvD) || !eff || eff.sh !== hr) return;
-    
+
     const el = buildDvItem({ type: 'habit', h, key, eff }, dvD);
-    
+
     // CALCULATE DURATION using effective (per-day) times
     const sMin = (eff.sh * 60) + (eff.sm || 0);
     const eMin = (eff.eh !== undefined) ? (eff.eh * 60 + (eff.em || 0)) : (sMin + 60);
     const duration = eMin - sMin;
 
-    // APPLY SPAN STYLES
     el.style.height = (duration > 0 ? duration : 60) + 'px';
     el.style.position = 'absolute';
     el.style.top = (eff.sm || 0) + 'px'; // Offset by starting minute
     el.style.zIndex = '10';
-    el.style.width = 'calc(100% - 10px)'; // Prevent overflow
-    
-    itemsEl.appendChild(el);
+
+    hrItems.push({ sMin, eMin, el });
   });
 
-  // 2. Timed events - FIXED HEIGHT CALCULATION
+  // 2. Timed events
   (D._events[key] || []).forEach(ev => {
     if (ev.sh !== hr) return;
-    
+
     const el = buildDvItem({ type: 'event', ev, key }, dvD);
-    
-    // CALCULATE DURATION
+
     const sMin = (ev.sh * 60) + (ev.sm || 0);
     const eMin = (ev.eh !== undefined) ? (ev.eh * 60 + (ev.em || 0)) : (sMin + 60);
     const duration = eMin - sMin;
 
-    // APPLY SPAN STYLES
     el.style.height = (duration > 0 ? duration : 60) + 'px';
     el.style.position = 'absolute';
     el.style.top = (ev.sm || 0) + 'px';
     el.style.zIndex = '10';
-    el.style.width = 'calc(100% - 10px)';
-    
-    itemsEl.appendChild(el);
+
+    hrItems.push({ sMin, eMin, el });
+  });
+
+  // ── Column layout for overlapping items ──────────────────────────────
+  // Simple greedy interval-graph coloring: sort by start time, place each
+  // item in the first column whose previous occupant has already ended;
+  // items that don't overlap with anything keep full width as before.
+  hrItems.sort((a, b) => a.sMin - b.sMin);
+  const colEndTimes = [];
+  hrItems.forEach(it => {
+    let col = colEndTimes.findIndex(endT => endT <= it.sMin);
+    if (col === -1) { col = colEndTimes.length; colEndTimes.push(it.eMin); }
+    else colEndTimes[col] = it.eMin;
+    it.col = col;
+  });
+  const totalCols = colEndTimes.length || 1;
+  hrItems.forEach(it => {
+    const gap = 4;
+    const widthPct = 100 / totalCols;
+    it.el.style.width = totalCols > 1
+      ? `calc(${widthPct}% - ${gap}px)`
+      : 'calc(100% - 10px)';
+    it.el.style.left = totalCols > 1
+      ? `calc(${it.col * widthPct}% + ${it.col > 0 ? gap / 2 : 2}px)`
+      : '0px';
+    itemsEl.appendChild(it.el);
   });
 
     // ── Drop zone with 15-min snapping ─────────────────────────────
@@ -14558,8 +14606,8 @@ Only use hids that exist in the habits list above. newActivities only if truly n
         </div>
         <div class="aip-tl-block-editor" id="aipBlockEd_${idx}">
           ${isNew ? `<label>Name <input class="aip-tl-block-name-input" type="text" value="${escH(name)}" id="aipBlEdName_${idx}"></label>` : ''}
-          <label>Start <input class="aip-tl-block-time-input" type="time" value="${startVal}" id="aipBlEdStart_${idx}"></label>
-          <label>End <input class="aip-tl-block-time-input" type="time" value="${endVal}" id="aipBlEdEnd_${idx}"></label>
+          <label>Start ${mkTimeSels(`aipBlEdSH_${idx}`,`aipBlEdSM_${idx}`, sh, sm)}</label>
+          <label>End ${mkTimeSels(`aipBlEdEH_${idx}`,`aipBlEdEM_${idx}`, eh, em)}</label>
           <button class="aip-tl-block-save" id="aipBlEdSave_${idx}">\u2713 Save</button>
         </div>`;
 
@@ -14581,13 +14629,17 @@ Only use hids that exist in the habits list above. newActivities only if truly n
         if(!ed) return;
         const isOpen = ed.classList.contains('open');
         document.querySelectorAll('.aip-tl-block-editor').forEach(x=>x.classList.remove('open'));
-        if(!isOpen) ed.classList.add('open');
+        document.querySelectorAll('.aip-tl-block.aip-editing').forEach(x=>x.classList.remove('aip-editing'));
+        if(!isOpen){ ed.classList.add('open'); block.classList.add('aip-editing'); }
       });
 
       // Save edit
-      document.getElementById(`aipBlockEd_${idx}`)?.querySelector('.aip-tl-block-save')?.addEventListener('click', e => {
+      // NOTE: `block` isn't attached to the document yet at this point in the loop,
+      // so document.getElementById(`aipBlockEd_${idx}`) would return null here —
+      // this was the bug that made the AI-plan edit "Save" button do nothing.
+      // Query the detached `block` node directly instead.
+      block.querySelector('.aip-tl-block-save')?.addEventListener('click', e => {
         e.stopPropagation();
-        // Need a stable reference via block closure
         _aipSaveBlockEdit(idx, items, isNew);
       });
 
@@ -14610,32 +14662,33 @@ Only use hids that exist in the habits list above. newActivities only if truly n
     const item = items[idx];
     if(!item) return;
 
-    const parseHM = id => {
-      const el = document.getElementById(id); if(!el) return null;
-      const [hh,mm]=(el.value||'').split(':').map(Number);
-      return {h:isNaN(hh)?null:hh, m:isNaN(mm)?0:mm};
-    };
-    const start = parseHM(`aipBlEdStart_${idx}`);
-    const end   = parseHM(`aipBlEdEnd_${idx}`);
+    // NOTE: the time fields are rendered by mkTimeSels() as separate hour/minute
+    // <select> pairs (ids `aipBlEdSH_${idx}`/`aipBlEdSM_${idx}` for start and
+    // `aipBlEdEH_${idx}`/`aipBlEdEM_${idx}` for end) — NOT a single
+    // `aipBlEdStart_${idx}` / `aipBlEdEnd_${idx}` "HH:MM" input. Reading those
+    // stale ids always returned null, silently no-oping the Save button.
+    // readTimeSel() (shared with the habit/event modals) reads the real pair.
+    const start = readTimeSel(`aipBlEdSH_${idx}`, `aipBlEdSM_${idx}`);
+    const end   = readTimeSel(`aipBlEdEH_${idx}`, `aipBlEdEM_${idx}`);
 
     if(item.type==='habit'){
-      if(start&&start.h!==null){ item.s.sh=start.h; item.s.sm=start.m; }
-      if(end&&end.h!==null)    { item.s.eh=end.h;   item.s.em=end.m;   }
+      if(start.h!==undefined){ item.s.sh=start.h; item.s.sm=start.m; }
+      if(end.h!==undefined)   { item.s.eh=end.h;   item.s.em=end.m;   }
       const sc = (_pendingSchedule.schedule||[]).find(s=>s.hid===item.h.id);
       if(sc){
-        if(start&&start.h!==null){sc.sh=start.h;sc.sm=start.m;}
-        if(end&&end.h!==null)    {sc.eh=end.h;  sc.em=end.m;  }
+        if(start.h!==undefined){sc.sh=start.h;sc.sm=start.m;}
+        if(end.h!==undefined)  {sc.eh=end.h;  sc.em=end.m;  }
       }
     } else {
       const nameEl = document.getElementById(`aipBlEdName_${idx}`);
       if(nameEl) item.a.name = nameEl.value.trim()||item.a.name;
-      if(start&&start.h!==null){ item.a.sh=start.h; item.a.sm=start.m; }
-      if(end&&end.h!==null)    { item.a.eh=end.h;   item.a.em=end.m;   }
+      if(start.h!==undefined){ item.a.sh=start.h; item.a.sm=start.m; }
+      if(end.h!==undefined)   { item.a.eh=end.h;   item.a.em=end.m;   }
       const na = (_pendingSchedule.newActivities||[]);
       if(na[item._pi]){
         if(nameEl) na[item._pi].name=item.a.name;
-        if(start&&start.h!==null){na[item._pi].sh=start.h;na[item._pi].sm=start.m;}
-        if(end&&end.h!==null)    {na[item._pi].eh=end.h;  na[item._pi].em=end.m;  }
+        if(start.h!==undefined){na[item._pi].sh=start.h;na[item._pi].sm=start.m;}
+        if(end.h!==undefined)  {na[item._pi].eh=end.h;  na[item._pi].em=end.m;  }
       }
     }
     _renderPreview();
@@ -14893,6 +14946,13 @@ EXACT FORMAT:
       if(!h) return;
       if(!_sanTime(s)) return;
       setDayTime(s.hid, _targetDate, s.sh, s.sm, s.eh, s.em);
+      // The habit's own recurring `days` may not include this date (e.g. the
+      // AI scheduled a one-off outside its usual pattern). setDayTime() only
+      // stores the TIME override — it doesn't make isSched() show the habit
+      // on a day it isn't normally scheduled. Force it visible for this date
+      // so the time we just set actually shows up on dashboard/calendar.
+      const targetDt = _dateFromKey(_targetDate);
+      if(!isSched(h, targetDt)) setFlexDay(s.hid, _targetDate, true);
       importedCount++;
     });
 
