@@ -8237,6 +8237,8 @@ function renderTodayCards(){
           <div class="hlinks" style="margin-top:5px;">
             <span class="hlink" data-act="readingUpdate">Update page</span>
             <span class="hlink" data-act="readingFinish">Finished book</span>
+            <span class="hlink" data-act="readingEdit">✎ Edit book</span>
+            <span class="hlink" data-act="readingRemove">✕ Remove book</span>
             <span class="hlink" data-act="readingLibrary">Library</span>
           </div>
         </div>`;
@@ -8394,6 +8396,8 @@ function renderTodayCards(){
         else if(a==='readingFinish') finishBook();
         else if(a==='readingLibrary') openReadingModal('library');
         else if(a==='readingAdd') openReadingModal('add');
+        else if(a==='readingEdit') openReadingModal('edit');
+        else if(a==='readingRemove') removeCurrentBook();
         else if(a==='clearWeekOvr'){rollingWeekKeys.forEach(wk=>clearWeekOvr(h.id,wk));render();renderWeekGrid();showToast('↺ Reset to default schedule');}
       });
     });
@@ -11533,37 +11537,98 @@ document.getElementById('mexReminderTime').addEventListener('change',_mexUpdateQ
 document.getElementById('closeReadingModal').addEventListener('click',()=>document.getElementById('readingModal').classList.remove('open'));
 document.getElementById('readingSave').addEventListener('click',saveReading);
 let _readingMode='add';
+let _readingIdx=null;
 
-function openReadingModal(mode){
-  _readingMode=mode;
+function _bkEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function _bookLibHtml(){
+  const lib=D._books.library||[];
+  if(!lib.length) return '<div style="color:var(--muted);font-size:.7rem;font-family:JetBrains Mono,monospace;">No books in library yet.</div>';
+  return lib.map((b,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.72rem;">
+    <div style="min-width:0;"><span style="font-weight:600;">${_bkEsc(b.title)}</span> <span style="color:var(--muted);">${_bkEsc(b.author||'')}</span></div>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted);">${_bkEsc(b.dateFinished||'')}</span>
+      <span class="hlink sm" data-lib-edit="${i}" title="Edit">✎</span>
+      <span class="hlink sm" data-lib-del="${i}" title="Delete">✕</span>
+    </div></div>`).join('');
+}
+
+function _wireLibButtons(){
+  const body=document.getElementById('readingModalBody');
+  body.querySelectorAll('[data-lib-edit]').forEach(el=>el.addEventListener('click',e=>{
+    e.stopPropagation(); openReadingModal('editlib',parseInt(el.dataset.libEdit));
+  }));
+  body.querySelectorAll('[data-lib-del]').forEach(el=>el.addEventListener('click',e=>{
+    e.stopPropagation();
+    const i=parseInt(el.dataset.libDel), b=D._books.library[i];
+    if(!b||!confirm(`Delete "${b.title}" from your library?`)) return;
+    D._books.library.splice(i,1);
+    delete D._bookProg[b.id];
+    sd(); render();
+    openReadingModal(_readingMode==='add'?'add':'library');
+    showToast('🗑 Book deleted');
+  }));
+}
+
+function openReadingModal(mode,idx){
+  _readingMode=mode; _readingIdx=(idx===undefined?null:idx);
   const book=D._books.current;
   const prog=book?D._bookProg[book.id]||{page:0}:{page:0};
-  const libHtml=D._books.library.map(b=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:.72rem;"><div><span style="font-weight:600;">${b.title}</span> <span style="color:var(--muted);">${b.author||''}</span></div><span style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted);">${b.dateFinished||''}</span></div>`).join('')||'<div style="color:var(--muted);font-size:.7rem;font-family:JetBrains Mono,monospace;">No books in library yet.</div>';
+  const libHtml=_bookLibHtml();
+  const saveBtn=document.getElementById('readingSave');
+  const body=document.getElementById('readingModalBody');
+  const title=document.getElementById('readingModalTitle');
+
   if(mode==='library'){
-    document.getElementById('readingModalTitle').textContent='📚 Book Library';
-    document.getElementById('readingModalBody').innerHTML=libHtml;
-    document.getElementById('readingSave').style.display='none';
+    title.textContent='📚 Book Library';
+    body.innerHTML=libHtml;
+    saveBtn.style.display='none';
   } else if(mode==='update'&&book){
-    document.getElementById('readingModalTitle').textContent='Update progress';
-    document.getElementById('readingModalBody').innerHTML=`
-      <div style="font-size:.8rem;font-weight:700;margin-bottom:3px;">${book.title}</div>
-      <div style="font-size:.68rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:12px;">${book.author||''}</div>
+    title.textContent='Update progress';
+    body.innerHTML=`
+      <div style="font-size:.8rem;font-weight:700;margin-bottom:3px;">${_bkEsc(book.title)}</div>
+      <div style="font-size:.68rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:12px;">${_bkEsc(book.author||'')}</div>
       <div class="fgrid">
         <div class="ff"><label>Current page</label><input id="rm-page" type="number" min="0" max="${book.pages||9999}" value="${prog.page}"></div>
         ${book.pages?`<div class="ff"><label>Total pages</label><input id="rm-total" type="number" min="1" value="${book.pages}" disabled></div>`:''}
       </div>`;
-    document.getElementById('readingSave').style.display='';
+    saveBtn.style.display='';
+  } else if(mode==='edit'&&book){
+    title.textContent='Edit book';
+    body.innerHTML=`
+      <div class="fgrid">
+        <div class="ff" style="grid-column:1/-1;"><label>Title</label><input id="rm-title" type="text" value="${_bkEsc(book.title)}"></div>
+        <div class="ff"><label>Author</label><input id="rm-author" type="text" value="${_bkEsc(book.author||'')}"></div>
+        <div class="ff"><label>Total pages</label><input id="rm-pages" type="number" min="0" value="${book.pages||''}"></div>
+        <div class="ff"><label>Current page</label><input id="rm-page" type="number" min="0" value="${prog.page||0}"></div>
+      </div>
+      <div style="margin-top:14px;"><button class="btn sm danger" id="rmRemoveBook">✕ Remove this book</button></div>`;
+    saveBtn.style.display='';
+    document.getElementById('rmRemoveBook').addEventListener('click',()=>removeCurrentBook());
+  } else if(mode==='editlib'&&D._books.library[_readingIdx]){
+    const b=D._books.library[_readingIdx];
+    title.textContent='Edit library book';
+    body.innerHTML=`
+      <div class="fgrid">
+        <div class="ff" style="grid-column:1/-1;"><label>Title</label><input id="rm-title" type="text" value="${_bkEsc(b.title)}"></div>
+        <div class="ff"><label>Author</label><input id="rm-author" type="text" value="${_bkEsc(b.author||'')}"></div>
+        <div class="ff"><label>Total pages</label><input id="rm-pages" type="number" min="0" value="${b.pages||''}"></div>
+        <div class="ff" style="grid-column:1/-1;"><label>Date finished</label><input id="rm-date" type="date" value="${_bkEsc(b.dateFinished||'')}"></div>
+      </div>`;
+    saveBtn.style.display='';
   } else {
-    document.getElementById('readingModalTitle').textContent='Add book to read';
-    document.getElementById('readingModalBody').innerHTML=`
+    _readingMode='add';
+    title.textContent='Add book to read';
+    body.innerHTML=`
       <div class="fgrid">
         <div class="ff" style="grid-column:1/-1;"><label>Title</label><input id="rm-title" type="text" placeholder="Book title"></div>
         <div class="ff"><label>Author</label><input id="rm-author" type="text" placeholder="Author name"></div>
         <div class="ff"><label>Total pages</label><input id="rm-pages" type="number" min="1" placeholder="e.g. 320"></div>
       </div>
       ${D._books.library.length?`<div style="margin-top:14px;"><div class="sec" style="margin-bottom:8px;">Previously read</div>${libHtml}</div>`:''}`;
-    document.getElementById('readingSave').style.display='';
+    saveBtn.style.display='';
   }
+  _wireLibButtons();
   document.getElementById('readingModal').classList.add('open');
 }
 
@@ -11572,6 +11637,28 @@ function saveReading(){
     const book=D._books.current;if(!book)return;
     const page=parseInt(document.getElementById('rm-page').value)||0;
     D._bookProg[book.id]={page};sd();render();document.getElementById('readingModal').classList.remove('open');showToast('Progress saved');
+  } else if(_readingMode==='edit'){
+    const book=D._books.current;if(!book)return;
+    const t=(document.getElementById('rm-title').value||'').trim();
+    if(!t){showToast('Enter a title');return;}
+    const pages=parseInt(document.getElementById('rm-pages').value)||0;
+    let page=Math.max(0,parseInt(document.getElementById('rm-page').value)||0);
+    if(pages&&page>pages) page=pages;
+    book.title=t;
+    book.author=(document.getElementById('rm-author').value||'').trim();
+    book.pages=pages;
+    D._bookProg[book.id]={page};
+    sd();render();document.getElementById('readingModal').classList.remove('open');showToast('✎ Book updated');
+  } else if(_readingMode==='editlib'){
+    const b=D._books.library[_readingIdx];if(!b)return;
+    const t=(document.getElementById('rm-title').value||'').trim();
+    if(!t){showToast('Enter a title');return;}
+    b.title=t;
+    b.author=(document.getElementById('rm-author').value||'').trim();
+    b.pages=parseInt(document.getElementById('rm-pages').value)||0;
+    b.dateFinished=document.getElementById('rm-date').value||b.dateFinished||'';
+    sd();render();showToast('✎ Book updated');
+    openReadingModal('library');
   } else if(_readingMode==='add'){
     const title=(document.getElementById('rm-title').value||'').trim();
     if(!title){showToast('Enter a title');return;}
@@ -11582,6 +11669,16 @@ function saveReading(){
     D._bookProg[id]={page:0};
     sd();render();document.getElementById('readingModal').classList.remove('open');showToast('📖 Now reading: '+title);
   }
+}
+
+function removeCurrentBook(){
+  const book=D._books.current;if(!book)return;
+  if(!confirm(`Remove "${book.title}" and its reading progress?`))return;
+  delete D._bookProg[book.id];
+  D._books.current=null;
+  sd();render();
+  document.getElementById('readingModal').classList.remove('open');
+  showToast('🗑 Book removed');
 }
 
 function finishBook(){
